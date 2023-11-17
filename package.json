@@ -2,7 +2,10 @@
   "name": "retirement-calculator",
   "version": "0.1.0",
   "description": "A versatile retirement financial planning tool for calculating savings, inflation impact, and withdrawal strategies.",
-  "main": "RetirementCalculator.js",
+  "main": "src/RetirementCalculator.js",
+  "files": [
+    "src/"
+  ],
   "scripts": {
     "build": "tsc",
     "build-docs": "typedoc --tsconfig tsconfig.docs.json",

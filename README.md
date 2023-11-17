@@ -61,6 +61,9 @@ compoundingFrequency
 ## Collaboration and Contributions
 Your contributions and ideas are essential to making this tool even better. Whether you want to add new features, fix bugs, or introduce innovative concepts, your involvement is greatly appreciated. Let's connect and collaborate on GitHub.
 
+## Docs
+Docs were made with TypeDoc and can be found [here](https://introvertedspud.github.io/retirement-calculator/).
+
 ## License
 This project is licensed under the [MIT License](LICENSE).
 
