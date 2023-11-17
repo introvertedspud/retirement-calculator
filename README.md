@@ -25,42 +25,54 @@ My journey into retirement planning began with a simple realization: existing to
 To address these challenges, I started developing the Retirement Calculator package. It's a work in progress, and I have more exciting features in mind, but it's already a powerful tool for your retirement planning needs.
 
 ## Key Features
-- **Contribution Calculation**: Determine monthly contributions to reach a specific retirement balance.
-- **Withdrawal Estimation**: Find out how much you can spend from your retirement savings.
-- **Inflation Adjustment**: Consider the impact of inflation on your retirement planning.
+
+- **Contribution Calculation**: Determine monthly contributions needed to reach your desired retirement balance.
+- **Withdrawal Estimation**: Understand how much you can safely spend from your retirement savings each year.
+- **Inflation Adjustment**: Take into account the impact of inflation on your retirement savings and planning.
+
 
 ## Usage
 
 ### Importing the Calculator
 
 ```typescript
-import { RetirementCalculator, CONTRIBUTION_FREQUENCY } from 'retirement-calculator';
+import { RetirementCalculator } from 'retirement-calculator';
 ```
-### Calculating Monthly Contributions
+### Calculating Compounding Interest With Additional Contributions
 ```typescript
 const calculator = new RetirementCalculator();
-const contributionDetails = calculator.getContributionNeededForDesiredBalance(
-  startingBalance,
-  desiredBalance,
-  years,
-  annualInterestRate,
-  contributionFrequency,
-  compoundingFrequency,
-  inflationRate
-);
+const balance = calculator.getCompoundInterestWithAdditionalContributions(1000, 100, 1, .1, 12, 12);
 ```
 
-### Calculating Compound Interest with Contributions
+
+### Calculate Contributions Needed to Achieve a Desired Balance
 ```typescript
-const compoundInterest = calculator.getCompoundInterestWithAdditionalContributions(
-initialBalance,
-monthlyContribution,
-years,
-annualInterestRate,
-contributionFrequency,
-compoundingFrequency
-);
+const calculator = new RetirementCalculator();
+const contributionsNeeded = getContributionNeededForDesiredBalance(1000,10000,10,.1,12,12);
+
+// You won't necessarily hit your exact goal, so to find out what the exact total would be, run the following
+const balance = calculator.getCompoundInterestWithAdditionalContributions(1000, contributionsNeeded.contributionNeededPerPeriod, 10, .1, 12, 12);
 ```
+
+### Example Scenarios
+I have made a couple example scenarios that can be found [here](examples).  This may give inspiration on how to best use this tool to plan for retirement.  There is a lot more to retirement than simply plugging numbers into a compounding interest calculator.
+
+#### Scenario 1
+Perhaps you have a starting balance in your retirement account, and want to get to the "prized" goal of $1,000,000.  Calculate how well you are doing now, and where you need to be in order to achieve your goal.  Also, potentially plan with inflation as this could severely impact your results.  To run, use ts-node in your console.
+
+Running the script will output the following:
+
+![Results from scenario 1](images/example1.png)
+
+#### Scenario 2
+Perhaps you don't know how much you want to have in retirement.  Instead, you would like to be able to spend $80,000 a year in retirement and not run out of money in 30 years based on the 4% rule.  You could also see what that would mean if you included inflation and wanted your $80,000 a year to go as far in 25 years as it does now.  To run, use ts-node in your console.
+
+Running the script will output the following:
+
+![Results from scenario 2](images/example2.png)
+
+More scenarios will be added as I add planned capabilities in the future.
+
 ## Planned Enhancements
 - **Detailed Periodic Reporting**: Provide a detailed breakdown of investments and interest accrued over each period, ideal for visualization.
 - **Fee Management**: Include functionality to account for management fees and their long-term impact.

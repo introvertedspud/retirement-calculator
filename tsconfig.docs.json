@@ -1,15 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "include": [
-    "src/**/*.ts", // Include your source files
-    "tests/**/*.ts", // Include test files if needed
-    "README.md" // Include your README if you want it in the documentation
+    "index.ts",
+    "src/**/*.ts",    // Include your TypeScript source files
+    "README.md"       // Include your README if you want it in the documentation
   ],
   "exclude": [
     "node_modules"
   ],
   "compilerOptions": {
-    "outDir": "./docs", // Specify the output directory for the documentation
-    "declaration": true
+    "outDir": "./docs" // Specify the output directory for the documentation
   }
 }

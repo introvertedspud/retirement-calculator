@@ -3,4 +3,7 @@ export { CONTRIBUTION_FREQUENCY } from './src/constants/retirementCalculatorCons
 export type {
   ContributionFrequencyType,
   DetermineContributionType,
+  CompoundingInterestObjectType,
+  CompoundingPeriodDetailsType,
+    YearlyCompoundingDetails
 } from './src/types/retirementCalculatorTypes';
