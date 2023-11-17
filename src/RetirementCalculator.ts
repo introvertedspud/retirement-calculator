@@ -5,7 +5,7 @@ import type { DetermineContributionType } from './types/retirementCalculatorType
  * RetirementCalculator provides various methods to calculate retirement finances,
  * including inflation adjustments, balance after inflation, and compound interest calculations.
  */
-export class RetirementCalculator {
+export default class RetirementCalculator {
   /**
    * Formats a number with commas and limits it to two decimal places.
    * @param value The number to be formatted.

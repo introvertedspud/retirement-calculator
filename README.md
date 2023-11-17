@@ -6,6 +6,14 @@ Welcome to the Retirement Calculator – your go-to tool for comprehensive retir
 
 Are you ready to embark on the journey of securing your financial future? Planning for retirement can be both exciting and challenging. As someone with a deep passion for personal finance and a desire for a brighter financial future, I've created this tool to help you navigate the complexities of retirement planning.
 
+## Installation
+
+To use the Retirement Calculator in your project, install it via npm:
+
+```bash
+npm i retirement-calculator
+```
+
 ## Why I Created This Package
 
 My journey into retirement planning began with a simple realization: existing tools didn't provide me with the insights I needed. I wanted to know not only how much I should save for retirement but also how to get there. I realized that:
@@ -23,6 +31,11 @@ To address these challenges, I started developing the Retirement Calculator pack
 
 ## Usage
 
+### Importing the Calculator
+
+```typescript
+import { RetirementCalculator, CONTRIBUTION_FREQUENCY } from 'retirement-calculator';
+```
 ### Calculating Monthly Contributions
 ```typescript
 const calculator = new RetirementCalculator();

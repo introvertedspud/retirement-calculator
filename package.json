@@ -1,8 +1,8 @@
 {
   "name": "retirement-calculator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A versatile retirement financial planning tool for calculating savings, inflation impact, and withdrawal strategies.",
-  "main": "src/RetirementCalculator.js",
+  "main": "dist/index.js",
   "files": [
     "src/"
   ],
@@ -11,6 +11,7 @@
     "build-docs": "typedoc --tsconfig tsconfig.docs.json",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "prepublish": "npm run format && npm run lint && npm run test && npm run build && npm run build-docs",
     "test": "jest"
   },
   "repository": {
