@@ -1,5 +1,10 @@
 import { CONTRIBUTION_FREQUENCY } from './constants/retirementCalculatorConstants';
-import type { DetermineContributionType } from './types/retirementCalculatorTypes';
+import type {
+  CompoundingInterestObjectType,
+  CompoundingPeriodDetailsType,
+  DetermineContributionType,
+  YearlyCompoundingDetails,
+} from './types/retirementCalculatorTypes';
 
 /**
  * RetirementCalculator provides various methods to calculate retirement finances,
@@ -260,12 +265,14 @@ export default class RetirementCalculator {
 
   /**
    * Calculate compound interest with additional contributions made over a given period of time.
-   * @param initialBalance
-   * @param additionalContributionAmount
-   * @param years
-   * @param interestRate
-   * @param contributionFrequency
-   * @param compoundingFrequency
+   *
+   * @param {number} initialBalance - The initial balance.
+   * @param {number} additionalContributionAmount - The additional contribution amount.
+   * @param {number} years - The number of years.
+   * @param {number} interestRate - The interest rate.
+   * @param {number} contributionFrequency - The contribution frequency.
+   * @param {number} compoundingFrequency - The compounding frequency.
+   * @returns {CompoundingInterestObjectType} An object that contains the results, and a history.
    */
   public getCompoundInterestWithAdditionalContributions(
     initialBalance: number,
@@ -274,7 +281,7 @@ export default class RetirementCalculator {
     interestRate: number,
     contributionFrequency: number,
     compoundingFrequency: number
-  ): number {
+  ): CompoundingInterestObjectType {
     const periods: number = this.getTotalPeriods(years, compoundingFrequency);
     const compoundMultiplier: number = this.getCompoundMultiplier(
       contributionFrequency,
@@ -290,15 +297,103 @@ export default class RetirementCalculator {
       compoundingFrequency
     );
 
+    const compoundingPeriodDetails: CompoundingPeriodDetailsType[] = [];
+    let totalContributions = 0;
+    let totalInterestEarned = 0;
+
     for (let period = 1; period <= periods; period++) {
       // Add contribution(s) at the correct time
       if (period % howOftenToCompound === 0) {
-        balance += additionalContributionAmount * compoundMultiplier;
+        const contributionThisPeriod =
+          additionalContributionAmount * compoundMultiplier;
+        totalContributions += contributionThisPeriod;
+        balance += contributionThisPeriod;
       }
+
       // Apply interest for each compounding period
-      balance *= 1 + interestRatePerPeriod;
+      const interestEarnedThisPeriod = balance * interestRatePerPeriod;
+      totalInterestEarned += interestEarnedThisPeriod;
+      balance += interestEarnedThisPeriod;
+
+      // Calculate balances from contributions and interest
+      const balanceFromContributions = totalContributions;
+      const balanceFromInterest = balance - totalContributions;
+
+      compoundingPeriodDetails.push({
+        period,
+        balance,
+        contributionTotal: totalContributions,
+        interestTotal: totalInterestEarned,
+        interestEarnedThisPeriod,
+        balanceFromContributions,
+        balanceFromInterest,
+      });
     }
 
-    return balance;
+    return {
+      balance,
+      totalContributions,
+      totalInterestEarned,
+      years,
+      contributionFrequency,
+      compoundingFrequency,
+      compoundingPeriodDetails,
+    };
+  }
+
+  /**
+   * Aggregates detailed compounding period data into yearly data.
+   * This method is useful for visualizing the growth of an investment on an annual basis.
+   *
+   * @param {CompoundingInterestObjectType} compoundingDetails - The detailed compounding data from the interest calculation.
+   * @returns {YearlyCompoundingDetails[]} An array of aggregated yearly data.
+   */
+  public aggregateDataByYear(
+    compoundingDetails: CompoundingInterestObjectType
+  ): YearlyCompoundingDetails[] {
+    const yearlyData: YearlyCompoundingDetails[] = [];
+    const compoundingPeriodDetails: CompoundingPeriodDetailsType[] =
+      compoundingDetails.compoundingPeriodDetails;
+    const compoundingFrequency: number =
+      compoundingDetails.compoundingFrequency;
+
+    // Initialize variables to track contributions and interest
+    let cumulativeContributions: number = 0;
+    let cumulativeInterest: number = 0;
+
+    for (let year: number = 1; year <= compoundingDetails.years; year++) {
+      const startPeriod: number = (year - 1) * compoundingFrequency + 1;
+      const endPeriod: number = year * compoundingFrequency;
+
+      for (let period: number = startPeriod; period <= endPeriod; period++) {
+        const detail: CompoundingPeriodDetailsType | undefined =
+          compoundingPeriodDetails[period - 1];
+        if (typeof detail !== 'undefined') {
+          // Calculate the contributions and interest for the year
+          if (period === startPeriod) {
+            // For the first period of the year, take the full cumulative amount
+            cumulativeContributions = detail.contributionTotal;
+            cumulativeInterest = detail.interestTotal;
+          } else {
+            // For subsequent periods, calculate the difference from the previous period
+            cumulativeContributions +=
+              detail.contributionTotal -
+              compoundingPeriodDetails[period - 2].contributionTotal;
+            cumulativeInterest +=
+              detail.interestTotal -
+              compoundingPeriodDetails[period - 2].interestTotal;
+          }
+        }
+      }
+
+      yearlyData.push({
+        year,
+        cumulativeContributions,
+        cumulativeInterest,
+        endOfYearBalance: compoundingPeriodDetails[endPeriod - 1].balance,
+      });
+    }
+
+    return yearlyData;
   }
 }

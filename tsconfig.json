@@ -8,9 +8,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
-    "declaration": true
+    "declaration": true,
+    "moduleResolution": "node"
   },
   "include": [
+    "index.ts",
     "src/**/*",
     "tests/**/*"
   ],
