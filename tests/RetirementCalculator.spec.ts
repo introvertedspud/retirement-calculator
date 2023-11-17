@@ -1,5 +1,5 @@
-import { RetirementCalculator } from '../src';
-import type { DetermineContributionType } from '../src';
+import RetirementCalculator from '../src/RetirementCalculator';
+import type { DetermineContributionType } from '../src/types/retirementCalculatorTypes';
 
 describe('RetirementCalculator', (): void => {
   let calculator: RetirementCalculator;
