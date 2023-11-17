@@ -1,0 +1,66 @@
+{
+  "name": "retirement-calculator",
+  "version": "0.1.0",
+  "description": "A versatile retirement financial planning tool for calculating savings, inflation impact, and withdrawal strategies.",
+  "main": "RetirementCalculator.js",
+  "scripts": {
+    "build": "tsc",
+    "build-docs": "typedoc --tsconfig tsconfig.docs.json",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/introvertedspud/retirement-calculator.git"
+  },
+  "keywords": [
+    "retirement",
+    "calculator",
+    "financial",
+    "planning",
+    "savings",
+    "investment",
+    "compound-interest",
+    "finance",
+    "typescript",
+    "money",
+    "pension",
+    "retirement-savings",
+    "financial-tool",
+    "personal-finance",
+    "wealth-management",
+    "retirement-planning",
+    "investment-calculator"
+  ],
+  "author": "Shaun Bonk",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/introvertedspud/retirement-calculator/issues"
+  },
+  "homepage": "https://github.com/introvertedspud/retirement-calculator#readme",
+  "devDependencies": {
+    "@types/jest": "^29.5.8",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "eslint": "^8.53.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-config-standard-with-typescript": "^39.1.1",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jest": "^27.6.0",
+    "eslint-plugin-n": "^16.3.1",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "husky": "^8.0.3",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.0",
+    "ts-jest": "^29.1.1",
+    "typedoc": "^0.25.3",
+    "typescript": "^5.2.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm run test:coverage"
+    }
+  }
+}

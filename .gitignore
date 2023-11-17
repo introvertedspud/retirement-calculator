@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+dist/
+
+# Env files
+.env
+
+# IDE/Editor configurations
+.idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test artifacts
+coverage/
+
+# Build scripts and configurations
+# buildScript.sh
+# any other specific files/directories
