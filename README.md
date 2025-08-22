@@ -29,6 +29,10 @@ To address these challenges, I started developing the Retirement Calculator pack
 - **Contribution Calculation**: Determine monthly contributions needed to reach your desired retirement balance.
 - **Withdrawal Estimation**: Understand how much you can safely spend from your retirement savings each year.
 - **Inflation Adjustment**: Take into account the impact of inflation on your retirement savings and planning.
+- **Dynamic Interest Glidepaths**: Age-aware return calculations with three powerful strategies:
+  - **Fixed Return Glidepath**: Linear decline from aggressive to conservative returns
+  - **Allocation-Based Glidepath**: Target-date fund style with equity/bond blending
+  - **Custom Waypoints**: Flexible strategies with user-defined age/return targets
 
 
 ## Usage
@@ -54,30 +58,114 @@ const contributionsNeeded = getContributionNeededForDesiredBalance(1000,10000,10
 const balance = calculator.getCompoundInterestWithAdditionalContributions(1000, contributionsNeeded.contributionNeededPerPeriod, 10, .1, 12, 12);
 ```
 
+### Dynamic Interest Glidepath Calculations
+
+**NEW**: Age-aware retirement calculations with sophisticated glidepath strategies.
+
+#### Fixed Return Glidepath
+Perfect for modeling target-date funds or declining return assumptions:
+
+```typescript
+const calculator = new RetirementCalculator();
+const result = calculator.getCompoundInterestWithGlidepath(
+  25000,    // Starting balance
+  1000,     // Monthly contribution
+  25,       // Starting age
+  65,       // Retirement age
+  {
+    mode: 'fixed-return',
+    startReturn: 0.10,    // 10% returns at age 25
+    endReturn: 0.055      // 5.5% returns at age 65
+  }
+);
+
+console.log(`Final balance: $${calculator.formatNumberWithCommas(result.finalBalance)}`);
+console.log(`Effective annual return: ${(result.effectiveAnnualReturn * 100).toFixed(2)}%`);
+```
+
+#### Allocation-Based Glidepath
+Model target-date funds with changing equity/bond allocations:
+
+```typescript
+const targetDateResult = calculator.getCompoundInterestWithGlidepath(
+  50000, 1500, 30, 65,
+  {
+    mode: 'allocation-based',
+    startEquityWeight: 0.90,    // 90% stocks at 30
+    endEquityWeight: 0.30,      // 30% stocks at 65
+    equityReturn: 0.12,         // 12% stock returns
+    bondReturn: 0.04            // 4% bond returns
+  }
+);
+```
+
+#### Custom Waypoints Glidepath
+Create sophisticated strategies with precise control:
+
+```typescript
+const customResult = calculator.getCompoundInterestWithGlidepath(
+  15000, 800, 25, 65,
+  {
+    mode: 'custom-waypoints',
+    valueType: 'equityWeight',
+    waypoints: [
+      { age: 25, value: 1.0 },    // 100% equity at 25
+      { age: 35, value: 0.85 },   // 85% equity at 35  
+      { age: 45, value: 0.70 },   // 70% equity at 45
+      { age: 55, value: 0.50 },   // 50% equity at 55
+      { age: 65, value: 0.25 }    // 25% equity at 65
+    ],
+    equityReturn: 0.11,
+    bondReturn: 0.035
+  }
+);
+
+// Rich timeline data for visualization
+console.log(`Timeline entries: ${customResult.monthlyTimeline.length}`);
+customResult.monthlyTimeline.forEach(entry => {
+  console.log(`Age ${entry.age.toFixed(1)}: ${(entry.currentAnnualReturn * 100).toFixed(2)}% return`);
+});
+```
+
 ### Example Scenarios
-I have made a couple example scenarios that can be found [here](examples).  This may give inspiration on how to best use this tool to plan for retirement.  There is a lot more to retirement than simply plugging numbers into a compounding interest calculator.
+I have created example scenarios that can be found [here](examples). These demonstrate both traditional and dynamic glidepath approaches to retirement planning.
 
-#### Scenario 1
-Perhaps you have a starting balance in your retirement account, and want to get to the "prized" goal of $1,000,000.  Calculate how well you are doing now, and where you need to be in order to achieve your goal.  Also, potentially plan with inflation as this could severely impact your results.  To run, use ts-node in your console.
+#### Basic Retirement Gap Analysis
+Perfect for when you have a specific retirement balance goal (like "$1 million") and want to see if your current savings rate is sufficient. This example shows you how to calculate your "retirement gap" and demonstrates the power of compound interest and why inflation matters for long-term planning.
 
-Running the script will output the following:
+```bash
+npx ts-node examples/basic-retirement-gap-analysis.ts
+```
 
-![Results from scenario 1](images/example1.png)
+#### Lifestyle-Based Retirement Planning
+Ideal for people who think in terms of "I want to spend $X per year in retirement" rather than accumulating a lump sum. This example works backwards from your desired lifestyle to required savings and shows how the 4% withdrawal rule works in practice.
 
-#### Scenario 2
-Perhaps you don't know how much you want to have in retirement.  Instead, you would like to be able to spend $80,000 a year in retirement and not run out of money in 30 years based on the 4% rule.  You could also see what that would mean if you included inflation and wanted your $80,000 a year to go as far in 25 years as it does now.  To run, use ts-node in your console.
+```bash
+npx ts-node examples/lifestyle-based-retirement-planning.ts
+```
 
-Running the script will output the following:
+#### Advanced Dynamic Investment Strategies ✨ **NEW**
+For advanced users who want to model changing investment strategies over time (like target-date funds) and compare sophisticated approaches. This comprehensive example demonstrates all glidepath modes with detailed comparisons and educational insights.
 
-![Results from scenario 2](images/example2.png)
+```bash
+npx ts-node examples/advanced-dynamic-investment-strategies.ts
+```
 
-More scenarios will be added as I add planned capabilities in the future.
+This example showcases:
+- **Fixed return glidepaths** for declining return assumptions
+- **Allocation-based strategies** mimicking target-date funds  
+- **Custom waypoint strategies** for precise control
+- **Performance comparisons** between traditional and dynamic approaches
+- **Timeline data usage** for creating charts and visualizations
+- **Educational insights** about why different strategies work
+
+More scenarios will be added as I continue to enhance the calculator's capabilities.
 
 ## Planned Enhancements
-- **Detailed Periodic Reporting**: Provide a detailed breakdown of investments and interest accrued over each period, ideal for visualization.
 - **Fee Management**: Include functionality to account for management fees and their long-term impact.
-- **Dynamic Interest Rates**: Adapt to changing interest rates to reflect different stages of financial planning.
 - **Loan and Withdrawal Impact**: Assess the effect of loans or withdrawals on your retirement savings.
+- **Monte Carlo Simulations**: Probabilistic modeling for market volatility and uncertainty.
+- **Tax-Advantaged Account Modeling**: Support for 401(k), IRA, Roth IRA contribution limits and tax implications.
 
 ## Upcoming Integration
 - **Interactive UI**: Developing an intuitive interface for easy retirement planning.

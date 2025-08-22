@@ -1,33 +1,34 @@
 module.exports = {
-    "env": {
-        "browser": true,
-        "es2021": true
+  env: {
+    browser: true,
+    es2021: true,
+  },
+  extends: [
+    'standard-with-typescript',
+    'plugin:prettier/recommended',
+    'plugin:jest/recommended',
+  ],
+  overrides: [
+    {
+      env: {
+        node: true,
+      },
+      files: ['.eslintrc.{js,cjs}'],
+      parserOptions: {
+        sourceType: 'script',
+      },
     },
-    "extends": ["standard-with-typescript",
-        "plugin:prettier/recommended",
-        "plugin:jest/recommended"
-    ],
-    "overrides": [
-        {
-            "env": {
-                "node": true
-            },
-            "files": [
-                ".eslintrc.{js,cjs}"
-            ],
-            "parserOptions": {
-                "sourceType": "script"
-            }
-        }
-    ],
-    "parserOptions": {
-        "ecmaVersion": "latest",
-        "sourceType": "module"
-    },
-    "plugins": [
-        // other plugins
-        "jest"
-    ],
-    "rules": {
-    }
-}
+  ],
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+  },
+  plugins: [
+    // other plugins
+    'jest',
+  ],
+  ignorePatterns: ['dist/', 'node_modules/', 'examples/', '*.js'],
+  rules: {
+    '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+  },
+};

@@ -1,6 +1,8 @@
 {
-  "entryPoints": ["./index.ts"],
+  "entryPoints": ["./index.ts", "./src/**/*.ts"],
   "out": "./docs",
-  "exclude": ["node_modules", "**/*.spec.ts"],
-  "groupOrder": ["Classes", "Interfaces", "Enums","*"]
+  "exclude": ["**/*.spec.ts"],
+  "groupOrder": ["Classes", "Types", "Interfaces", "Enums", "Functions", "*"],
+  "categorizeByGroup": true,
+  "includeVersion": true
 }
