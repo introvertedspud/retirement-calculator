@@ -1,6 +1,6 @@
 {
   "name": "retirement-calculator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A versatile retirement financial planning tool for calculating savings, inflation impact, and withdrawal strategies.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

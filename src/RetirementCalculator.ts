@@ -4,6 +4,14 @@ import type {
   CompoundingPeriodDetailsType,
   DetermineContributionType,
   YearlyCompoundingDetails,
+  DynamicGlidepathConfig,
+  ContributionTiming,
+  DynamicGlidepathResult,
+  MonthlyTimelineEntry,
+  FixedReturnGlidepathConfig,
+  SteppedReturnGlidepathConfig,
+  AllocationBasedGlidepathConfig,
+  CustomWaypointsGlidepathConfig,
 } from './types/retirementCalculatorTypes';
 
 /**
@@ -94,6 +102,7 @@ export default class RetirementCalculator {
 
   /**
    * Calculate the total interest multiplier used for determining contributions needed to hit a goal.
+   * Uses the geometric series formula for efficiency: sum = a(r^n - 1)/(r - 1)
    * @param interestRate
    * @param periods
    * @private
@@ -102,11 +111,15 @@ export default class RetirementCalculator {
     interestRate: number,
     periods: number
   ): number {
-    let totalInterestMultiplier: number = 0;
-    for (let i: number = 1; i <= periods; i++) {
-      totalInterestMultiplier += (1 + interestRate) ** i;
+    // Handle special case where interest rate is 0
+    if (interestRate === 0) {
+      return periods;
     }
-    return totalInterestMultiplier;
+
+    // Geometric series formula: sum of (1+r)^i from i=1 to n
+    // This equals: ((1+r)^(n+1) - (1+r)) / r
+    const r = 1 + interestRate;
+    return (Math.pow(r, periods + 1) - r) / interestRate;
   }
 
   /**
@@ -395,5 +408,453 @@ export default class RetirementCalculator {
     }
 
     return yearlyData;
+  }
+
+  // ============================================================================
+  // DYNAMIC GLIDEPATH METHODS
+  // ============================================================================
+
+  /**
+   * Calculate compound interest with age-aware glidepath strategies.
+   * Supports fixed returns, allocation-based strategies, and custom waypoints.
+   *
+   * @param initialBalance Starting account balance
+   * @param contributionAmount Amount contributed per contribution period
+   * @param startAge Starting age for calculation
+   * @param endAge Ending age for calculation
+   * @param glidepathConfig Strategy configuration (fixed, allocation-based, or custom)
+   * @param contributionFrequency Number of contributions per year (default: 12)
+   * @param compoundingFrequency Number of compounding periods per year (default: 12)
+   * @param contributionTiming When contributions are added ('start' or 'end' of period)
+   * @returns Detailed glidepath calculation results with timeline data
+   */
+  public getCompoundInterestWithGlidepath(
+    initialBalance: number,
+    contributionAmount: number,
+    startAge: number,
+    endAge: number,
+    glidepathConfig: DynamicGlidepathConfig,
+    contributionFrequency: number = 12,
+    compoundingFrequency: number = 12,
+    contributionTiming: ContributionTiming = 'start'
+  ): DynamicGlidepathResult {
+    // Input validation
+    if (initialBalance < 0) {
+      throw new Error('Initial balance must be non-negative');
+    }
+
+    if (contributionAmount < 0) {
+      throw new Error('Contribution amount must be non-negative');
+    }
+
+    if (startAge <= 0 || endAge <= 0) {
+      throw new Error('Ages must be positive');
+    }
+
+    if (startAge >= endAge) {
+      throw new Error('Start age must be less than end age');
+    }
+
+    if (contributionFrequency <= 0 || compoundingFrequency <= 0) {
+      throw new Error('Frequencies must be positive');
+    }
+
+    // Calculate simulation parameters
+    const totalYears = endAge - startAge;
+    const totalMonths = Math.ceil(totalYears * 12);
+
+    // Initialize simulation state
+    let balance = initialBalance;
+    let totalContributions = 0;
+    let totalInterestEarned = 0;
+
+    const monthlyTimeline: MonthlyTimelineEntry[] = [];
+
+    // Calculate compound multiplier and contribution timing
+    const compoundMultiplier = this.getCompoundMultiplier(
+      contributionFrequency,
+      compoundingFrequency
+    );
+    const howOftenToCompound = this.getHowOftenToCompound(
+      contributionFrequency,
+      compoundingFrequency
+    );
+
+    // Monthly simulation loop
+    for (let month = 1; month <= totalMonths; month++) {
+      // Calculate current age
+      const currentAge = startAge + (month - 1) / 12;
+
+      // Get annual return rate for current age
+      const annualReturnRate = this.calculateGlidepathReturn(
+        currentAge,
+        glidepathConfig,
+        startAge,
+        endAge
+      );
+
+      // Convert to monthly compounding rate
+      const monthlyReturnRate =
+        this.convertAnnualToMonthlyRate(annualReturnRate);
+
+      // Handle contribution timing (match existing method logic)
+      let contributionThisMonth = 0;
+      if (month % howOftenToCompound === 0) {
+        contributionThisMonth = contributionAmount * compoundMultiplier;
+      }
+
+      // Add contributions at start or end of month
+      if (contributionTiming === 'start' && contributionThisMonth > 0) {
+        balance += contributionThisMonth;
+        totalContributions += contributionThisMonth;
+      }
+
+      // Apply monthly compounding
+      const interestEarnedThisMonth = balance * monthlyReturnRate;
+      balance += interestEarnedThisMonth;
+      totalInterestEarned += interestEarnedThisMonth;
+
+      // Add contributions at end of month
+      if (contributionTiming === 'end' && contributionThisMonth > 0) {
+        balance += contributionThisMonth;
+        totalContributions += contributionThisMonth;
+      }
+
+      // Get current equity weight for timeline data
+      const currentEquityWeight = this.getCurrentEquityWeight(
+        currentAge,
+        glidepathConfig,
+        startAge,
+        endAge
+      );
+
+      // Create timeline entry
+      const timelineEntry: MonthlyTimelineEntry = {
+        month,
+        age: currentAge,
+        currentBalance: balance,
+        cumulativeContributions: totalContributions,
+        cumulativeInterest: totalInterestEarned,
+        monthlyInterestEarned: interestEarnedThisMonth,
+        currentAnnualReturn: annualReturnRate,
+        currentMonthlyReturn: monthlyReturnRate,
+        currentEquityWeight,
+      };
+
+      monthlyTimeline.push(timelineEntry);
+    }
+
+    // Calculate summary statistics
+    const effectiveAnnualReturn =
+      Math.pow(balance / initialBalance, 1 / totalYears) - 1;
+    const averageMonthlyReturn =
+      monthlyTimeline.reduce(
+        (sum, entry) => sum + entry.currentMonthlyReturn,
+        0
+      ) / monthlyTimeline.length;
+
+    // Round final balance to nearest cent
+    const finalBalance = Math.round(balance * 100) / 100;
+
+    return {
+      finalBalance,
+      totalContributions,
+      totalInterestEarned,
+      totalMonths,
+      startAge,
+      endAge,
+      glidepathMode: glidepathConfig.mode,
+      monthlyTimeline,
+      effectiveAnnualReturn,
+      averageMonthlyReturn,
+    };
+  }
+
+  /**
+   * Calculate the annual return rate for a given age using the specified glidepath strategy.
+   * @param age Current age for calculation
+   * @param config Glidepath configuration
+   * @param startAge Starting age for age-based calculations
+   * @param endAge Ending age for age-based calculations
+   * @returns Annual return rate (decimal format)
+   * @private
+   */
+  private calculateGlidepathReturn(
+    age: number,
+    config: DynamicGlidepathConfig,
+    startAge: number,
+    endAge: number
+  ): number {
+    switch (config.mode) {
+      case 'fixed-return':
+        return this.calculateFixedReturnGlidepath(
+          age,
+          config,
+          startAge,
+          endAge
+        );
+      case 'stepped-return':
+        return this.calculateSteppedReturnGlidepath(age, config);
+      case 'allocation-based':
+        return this.calculateAllocationBasedGlidepath(
+          age,
+          config,
+          startAge,
+          endAge
+        );
+      case 'custom-waypoints':
+        return this.calculateCustomWaypointsGlidepath(age, config);
+      default: {
+        // TypeScript exhaustive check
+        const _exhaustive: never = config;
+        throw new Error(
+          `Unsupported glidepath mode: ${JSON.stringify(_exhaustive)}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Calculate linear interpolation progress between start and end ages.
+   * @param age Current age
+   * @param startAge Starting age
+   * @param endAge Ending age
+   * @returns Clamped progress value between 0 and 1
+   * @private
+   */
+  private calculateAgeProgress(
+    age: number,
+    startAge: number,
+    endAge: number
+  ): number {
+    const ageProgress = (age - startAge) / (endAge - startAge);
+    return Math.max(0, Math.min(1, ageProgress));
+  }
+
+  /**
+   * Calculate return for fixed-return glidepath (linear interpolation).
+   * @param age Current age
+   * @param config Fixed return configuration
+   * @param startAge Starting age for calculation
+   * @param endAge Ending age for calculation
+   * @returns Annual return rate
+   * @private
+   */
+  private calculateFixedReturnGlidepath(
+    age: number,
+    config: FixedReturnGlidepathConfig,
+    startAge: number,
+    endAge: number
+  ): number {
+    const progress = this.calculateAgeProgress(age, startAge, endAge);
+    return (
+      config.startReturn + (config.endReturn - config.startReturn) * progress
+    );
+  }
+
+  /**
+   * Calculate return for stepped-return glidepath (Money Guy style).
+   * @param age Current age
+   * @param config Stepped return configuration
+   * @returns Annual return rate
+   * @private
+   */
+  private calculateSteppedReturnGlidepath(
+    age: number,
+    config: SteppedReturnGlidepathConfig
+  ): number {
+    // Hold base return until decline start age
+    if (age < config.declineStartAge) {
+      return config.baseReturn;
+    }
+
+    // Hold terminal return after terminal age
+    if (age >= config.terminalAge) {
+      return config.terminalReturn;
+    }
+
+    // Linear decline between decline start and terminal age
+    const yearsFromStart = age - config.declineStartAge;
+    const calculatedReturn =
+      config.baseReturn - yearsFromStart * config.declineRate;
+
+    // Ensure we don't go below terminal return
+    return Math.max(calculatedReturn, config.terminalReturn);
+  }
+
+  /**
+   * Calculate return for allocation-based glidepath.
+   * @param age Current age
+   * @param config Allocation-based configuration
+   * @param startAge Starting age for calculation
+   * @param endAge Ending age for calculation
+   * @returns Annual return rate
+   * @private
+   */
+  private calculateAllocationBasedGlidepath(
+    age: number,
+    config: AllocationBasedGlidepathConfig,
+    startAge: number,
+    endAge: number
+  ): number {
+    const progress = this.calculateAgeProgress(age, startAge, endAge);
+
+    const currentEquityWeight =
+      config.startEquityWeight +
+      (config.endEquityWeight - config.startEquityWeight) * progress;
+
+    return this.calculateBlendedReturn(
+      currentEquityWeight,
+      config.equityReturn,
+      config.bondReturn
+    );
+  }
+
+  /**
+   * Interpolate a value between waypoints for a given age.
+   * @param age Current age
+   * @param waypoints Array of waypoints (already sorted)
+   * @returns Interpolated value at the given age
+   * @private
+   */
+  private interpolateWaypoints(
+    age: number,
+    waypoints: Array<{ age: number; value: number }>
+  ): number {
+    if (waypoints.length === 0) {
+      throw new Error('Waypoints array must contain at least one waypoint');
+    }
+
+    if (waypoints.length === 1) {
+      return waypoints[0].value;
+    }
+
+    // Handle age outside waypoint range
+    if (age <= waypoints[0].age) {
+      return waypoints[0].value;
+    }
+    if (age >= waypoints[waypoints.length - 1].age) {
+      return waypoints[waypoints.length - 1].value;
+    }
+
+    // Find surrounding waypoints
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      if (age >= waypoints[i].age && age <= waypoints[i + 1].age) {
+        const lowerWaypoint = waypoints[i];
+        const upperWaypoint = waypoints[i + 1];
+
+        // Linear interpolation
+        const ageProgress =
+          (age - lowerWaypoint.age) / (upperWaypoint.age - lowerWaypoint.age);
+        return (
+          lowerWaypoint.value +
+          (upperWaypoint.value - lowerWaypoint.value) * ageProgress
+        );
+      }
+    }
+
+    // Should never reach here, but return last waypoint value as fallback
+    return waypoints[waypoints.length - 1].value;
+  }
+
+  /**
+   * Calculate blended return based on equity and bond allocation.
+   * @param equityWeight Equity allocation weight (0.0 to 1.0)
+   * @param equityReturn Expected annual equity return
+   * @param bondReturn Expected annual bond return
+   * @returns Blended annual return rate
+   * @private
+   */
+  private calculateBlendedReturn(
+    equityWeight: number,
+    equityReturn: number,
+    bondReturn: number
+  ): number {
+    return equityWeight * equityReturn + (1 - equityWeight) * bondReturn;
+  }
+
+  /**
+   * Calculate return for custom waypoints glidepath.
+   * @param age Current age
+   * @param config Custom waypoints configuration
+   * @returns Annual return rate
+   * @private
+   */
+  private calculateCustomWaypointsGlidepath(
+    age: number,
+    config: CustomWaypointsGlidepathConfig
+  ): number {
+    const waypoints = [...config.waypoints].sort((a, b) => a.age - b.age);
+
+    if (waypoints.length === 0) {
+      throw new Error(
+        'Custom waypoints configuration must have at least one waypoint'
+      );
+    }
+
+    const interpolatedValue = this.interpolateWaypoints(age, waypoints);
+
+    // Convert to return rate based on value type
+    if (config.valueType === 'return') {
+      return interpolatedValue;
+    } else {
+      // equityWeight - blend with equity/bond returns
+      const equityReturn = config.equityReturn ?? 0.1;
+      const bondReturn = config.bondReturn ?? 0.04;
+      return this.calculateBlendedReturn(
+        interpolatedValue,
+        equityReturn,
+        bondReturn
+      );
+    }
+  }
+
+  /**
+   * Get the current equity weight for allocation-based and custom waypoints configurations.
+   * Used for timeline data enrichment.
+   * @param age Current age
+   * @param config Glidepath configuration
+   * @param startAge Starting age for age-based calculations
+   * @param endAge Ending age for age-based calculations
+   * @returns Equity weight (0.0 to 1.0) or undefined for non-allocation modes
+   * @private
+   */
+  private getCurrentEquityWeight(
+    age: number,
+    config: DynamicGlidepathConfig,
+    startAge: number,
+    endAge: number
+  ): number | undefined {
+    switch (config.mode) {
+      case 'allocation-based': {
+        const progress = this.calculateAgeProgress(age, startAge, endAge);
+        return (
+          config.startEquityWeight +
+          (config.endEquityWeight - config.startEquityWeight) * progress
+        );
+      }
+      case 'custom-waypoints': {
+        if (config.valueType !== 'equityWeight') {
+          return undefined;
+        }
+        const waypoints = [...config.waypoints].sort((a, b) => a.age - b.age);
+        if (waypoints.length === 0) return undefined;
+
+        return this.interpolateWaypoints(age, waypoints);
+      }
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Convert annual interest rate to monthly compounding rate.
+   * Formula: monthlyRate = (1 + annualRate)^(1/12) - 1
+   * @param annualRate Annual interest rate (decimal)
+   * @returns Monthly compounding rate (decimal)
+   * @private
+   */
+  private convertAnnualToMonthlyRate(annualRate: number): number {
+    return Math.pow(1 + annualRate, 1 / 12) - 1;
   }
 }
