@@ -545,8 +545,16 @@ export default class RetirementCalculator {
     }
 
     // Calculate summary statistics
-    const effectiveAnnualReturn =
-      Math.pow(balance / initialBalance, 1 / totalYears) - 1;
+    let effectiveAnnualReturn: number;
+    if (initialBalance === 0) {
+      // When starting from 0, calculate return based on contributions instead
+      effectiveAnnualReturn =
+        totalContributions > 0
+          ? Math.pow(balance / totalContributions, 1 / totalYears) - 1
+          : 0;
+    } else {
+      effectiveAnnualReturn = Math.pow(balance / initialBalance, 1 / totalYears) - 1;
+    }
     const averageMonthlyReturn =
       monthlyTimeline.reduce(
         (sum, entry) => sum + entry.currentMonthlyReturn,
