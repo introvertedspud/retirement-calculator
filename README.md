@@ -45,7 +45,13 @@ import { RetirementCalculator } from 'retirement-calculator';
 ### Calculating Compounding Interest With Additional Contributions
 ```typescript
 const calculator = new RetirementCalculator();
-const balance = calculator.getCompoundInterestWithAdditionalContributions(1000, 100, 1, .1, 12, 12);
+const result = calculator.getCompoundInterestWithAdditionalContributions(1000, 100, 1, .1, 12, 12);
+
+console.log(`Final balance: $${result.balance.toFixed(2)}`);
+console.log(`Total contributions: $${result.totalContributions.toFixed(2)}`);
+console.log(`Total interest earned: $${result.totalInterestEarned.toFixed(2)}`);
+console.log(`Account growth rate: ${(result.effectiveAnnualReturn * 100).toFixed(2)}%`);
+console.log(`Investment return rate: ${(result.averageAnnualInterestRate * 100).toFixed(2)}%`);
 ```
 
 
@@ -57,6 +63,20 @@ const contributionsNeeded = getContributionNeededForDesiredBalance(1000,10000,10
 // You won't necessarily hit your exact goal, so to find out what the exact total would be, run the following
 const balance = calculator.getCompoundInterestWithAdditionalContributions(1000, contributionsNeeded.contributionNeededPerPeriod, 10, .1, 12, 12);
 ```
+
+### Understanding Return Metrics
+
+The calculator provides **two distinct return metrics** to give you a complete picture:
+
+- **`effectiveAnnualReturn`**: Overall account growth rate including both contributions AND investment returns. This shows how fast your total account balance grows, but can be misleading when you're making regular contributions.
+
+- **`averageAnnualInterestRate`**: Investment performance isolated from contribution growth. This metric shows the actual returns your investments are earning, making it easier to compare against market benchmarks.
+
+**Example:** With a $10,000 starting balance, $1,000/month contributions, and 8% market returns over 10 years:
+- `effectiveAnnualReturn`: ~35% (misleading - mostly from contributions!)
+- `averageAnnualInterestRate`: ~5.6% (actual investment performance)
+
+When investment returns are 0%, both metrics correctly return 0%.
 
 ### Dynamic Interest Glidepath Calculations
 
@@ -80,7 +100,9 @@ const result = calculator.getCompoundInterestWithGlidepath(
 );
 
 console.log(`Final balance: $${calculator.formatNumberWithCommas(result.finalBalance)}`);
-console.log(`Effective annual return: ${(result.effectiveAnnualReturn * 100).toFixed(2)}%`);
+console.log(`Total interest earned: $${calculator.formatNumberWithCommas(result.totalInterestEarned)}`);
+console.log(`Account growth rate: ${(result.effectiveAnnualReturn * 100).toFixed(2)}%`);
+console.log(`Investment return rate: ${(result.averageAnnualInterestRate * 100).toFixed(2)}%`);
 ```
 
 #### Allocation-Based Glidepath

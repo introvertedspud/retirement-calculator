@@ -343,6 +343,29 @@ export default class RetirementCalculator {
       });
     }
 
+    // Calculate return metrics
+    let effectiveAnnualReturn: number;
+
+    // If no interest was earned, return 0% (growth is only from contributions, not returns)
+    if (totalInterestEarned === 0) {
+      effectiveAnnualReturn = 0;
+    } else if (initialBalance === 0) {
+      // When starting from 0, calculate return based on contributions instead
+      effectiveAnnualReturn =
+        totalContributions > 0
+          ? Math.pow(balance / totalContributions, 1 / years) - 1
+          : 0;
+    } else {
+      effectiveAnnualReturn = Math.pow(balance / initialBalance, 1 / years) - 1;
+    }
+
+    // Calculate average annual interest rate based on actual investment returns
+    const totalInvested = initialBalance + totalContributions;
+    const averageAnnualInterestRate =
+      totalInvested > 0 && totalInterestEarned > 0
+        ? totalInterestEarned / years / totalInvested
+        : 0;
+
     return {
       balance,
       totalContributions,
@@ -351,6 +374,8 @@ export default class RetirementCalculator {
       contributionFrequency,
       compoundingFrequency,
       compoundingPeriodDetails,
+      effectiveAnnualReturn,
+      averageAnnualInterestRate,
     };
   }
 
@@ -546,20 +571,33 @@ export default class RetirementCalculator {
 
     // Calculate summary statistics
     let effectiveAnnualReturn: number;
-    if (initialBalance === 0) {
+
+    // If no interest was earned, return 0% (growth is only from contributions, not returns)
+    if (totalInterestEarned === 0) {
+      effectiveAnnualReturn = 0;
+    } else if (initialBalance === 0) {
       // When starting from 0, calculate return based on contributions instead
       effectiveAnnualReturn =
         totalContributions > 0
           ? Math.pow(balance / totalContributions, 1 / totalYears) - 1
           : 0;
     } else {
-      effectiveAnnualReturn = Math.pow(balance / initialBalance, 1 / totalYears) - 1;
+      effectiveAnnualReturn =
+        Math.pow(balance / initialBalance, 1 / totalYears) - 1;
     }
     const averageMonthlyReturn =
       monthlyTimeline.reduce(
         (sum, entry) => sum + entry.currentMonthlyReturn,
         0
       ) / monthlyTimeline.length;
+
+    // Calculate average annual interest rate based on actual investment returns
+    // This isolates investment performance from contribution growth
+    const totalInvested = initialBalance + totalContributions;
+    const averageAnnualInterestRate =
+      totalInvested > 0 && totalInterestEarned > 0
+        ? totalInterestEarned / totalYears / totalInvested
+        : 0;
 
     // Round final balance to nearest cent
     const finalBalance = Math.round(balance * 100) / 100;
@@ -574,6 +612,7 @@ export default class RetirementCalculator {
       glidepathMode: glidepathConfig.mode,
       monthlyTimeline,
       effectiveAnnualReturn,
+      averageAnnualInterestRate,
       averageMonthlyReturn,
     };
   }

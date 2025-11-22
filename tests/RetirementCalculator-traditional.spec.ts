@@ -392,6 +392,8 @@ describe('RetirementCalculator', (): void => {
       const result = calculator.aggregateDataByYear({
         balance: 17609.62498400704,
         compoundingFrequency: 1,
+        effectiveAnnualReturn: 0,
+        averageAnnualInterestRate: 0,
         compoundingPeriodDetails: [
           {
             balance: 10605,
@@ -562,6 +564,8 @@ describe('RetirementCalculator', (): void => {
         years: 2,
         contributionFrequency: 12,
         compoundingFrequency: 12,
+        effectiveAnnualReturn: 0,
+        averageAnnualInterestRate: 0,
         compoundingPeriodDetails: [
           {
             period: 1,

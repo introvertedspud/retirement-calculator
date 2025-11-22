@@ -76,7 +76,8 @@ try {
   console.log(`   Final retirement balance: $${calculator.formatNumberWithCommas(fixedResult.finalBalance)}`);
   console.log(`   Your total contributions: $${calculator.formatNumberWithCommas(fixedResult.totalContributions)}`);
   console.log(`   FREE money from compound growth: $${calculator.formatNumberWithCommas(fixedResult.totalInterestEarned)}`);
-  console.log(`   Your effective annual return: ${(fixedResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Account growth rate: ${(fixedResult.effectiveAnnualReturn * 100).toFixed(2)}% (includes contributions)`);
+  console.log(`   Investment return rate: ${(fixedResult.averageAnnualInterestRate * 100).toFixed(2)}% (market performance)`);
   console.log(`   Years of financial freedom this buys: ${Math.floor(fixedResult.finalBalance / 50000)} years at $50K/year!`);
 
   console.log(`\n📊 How Your Strategy Changes Over Time:`);
@@ -132,7 +133,8 @@ try {
   console.log(`   Final retirement balance: $${calculator.formatNumberWithCommas(allocationResult.finalBalance)}`);
   console.log(`   Your total contributions: $${calculator.formatNumberWithCommas(allocationResult.totalContributions)}`);
   console.log(`   FREE money from compound growth: $${calculator.formatNumberWithCommas(allocationResult.totalInterestEarned)}`);
-  console.log(`   Your effective annual return: ${(allocationResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Account growth rate: ${(allocationResult.effectiveAnnualReturn * 100).toFixed(2)}% (includes contributions)`);
+  console.log(`   Investment return rate: ${(allocationResult.averageAnnualInterestRate * 100).toFixed(2)}% (market performance)`);
   
   const monthlyWithdrawal = Math.floor(allocationResult.finalBalance * 0.04 / 12);
   console.log(`   Monthly retirement income (4% rule): $${calculator.formatNumberWithCommas(monthlyWithdrawal)}`);
@@ -199,7 +201,8 @@ try {
   console.log(`   Final retirement balance: $${calculator.formatNumberWithCommas(customResult.finalBalance)}`);
   console.log(`   Your total contributions: $${calculator.formatNumberWithCommas(customResult.totalContributions)}`);
   console.log(`   FREE money from compound growth: $${calculator.formatNumberWithCommas(customResult.totalInterestEarned)}`);
-  console.log(`   Your effective annual return: ${(customResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Account growth rate: ${(customResult.effectiveAnnualReturn * 100).toFixed(2)}% (includes contributions)`);
+  console.log(`   Investment return rate: ${(customResult.averageAnnualInterestRate * 100).toFixed(2)}% (market performance)`);
   
   const growthMultiple = (customResult.finalBalance / customResult.totalContributions).toFixed(1);
   console.log(`   Your money grew ${growthMultiple}x - every dollar became $${growthMultiple}!`);
@@ -250,7 +253,8 @@ try {
   console.log(`   Final retirement balance: $${calculator.formatNumberWithCommas(moneyGuyResult.finalBalance)}`);
   console.log(`   Your total contributions: $${calculator.formatNumberWithCommas(moneyGuyResult.totalContributions)}`);
   console.log(`   FREE money from compound growth: $${calculator.formatNumberWithCommas(moneyGuyResult.totalInterestEarned)}`);
-  console.log(`   Your effective annual return: ${(moneyGuyResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Account growth rate: ${(moneyGuyResult.effectiveAnnualReturn * 100).toFixed(2)}% (includes contributions)`);
+  console.log(`   Investment return rate: ${(moneyGuyResult.averageAnnualInterestRate * 100).toFixed(2)}% (market performance)`);
   
   const yearlyIncome = Math.floor(moneyGuyResult.finalBalance * 0.04);
   console.log(`   Annual retirement income (4% rule): $${calculator.formatNumberWithCommas(yearlyIncome)}`);
@@ -321,7 +325,8 @@ try {
   console.log(`   Final balance: $${calculator.formatNumberWithCommas(dynamicResult.finalBalance)}`);
   console.log(`   Total contributions: $${calculator.formatNumberWithCommas(dynamicResult.totalContributions)}`);
   console.log(`   Total interest: $${calculator.formatNumberWithCommas(dynamicResult.totalInterestEarned)}`);
-  console.log(`   Effective return: ${(dynamicResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Account growth rate: ${(dynamicResult.effectiveAnnualReturn * 100).toFixed(2)}%`);
+  console.log(`   Investment return rate: ${(dynamicResult.averageAnnualInterestRate * 100).toFixed(2)}%`);
   console.log(`   Strategy: Age-appropriate risk management`);
 
   const difference = dynamicResult.finalBalance - traditionalResult.balance;

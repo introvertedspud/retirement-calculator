@@ -127,6 +127,22 @@ export type CompoundingInterestObjectType = {
    * @type {CompoundingPeriodDetailsType[]}
    */
   compoundingPeriodDetails: CompoundingPeriodDetailsType[];
+
+  /**
+   * Effective compound annual growth rate over the entire simulation period.
+   * Calculated as (finalBalance / initialBalance)^(1/years) - 1
+   * NOTE: This includes growth from both contributions AND investment returns.
+   * For investment returns only, see averageAnnualInterestRate.
+   */
+  effectiveAnnualReturn: number;
+
+  /**
+   * Average annual interest rate based on actual investment returns.
+   * Calculated as (totalInterestEarned / years) / (initialBalance + totalContributions)
+   * This metric isolates investment performance from contribution growth.
+   * Returns 0 when no interest is earned.
+   */
+  averageAnnualInterestRate: number;
 };
 
 /**
@@ -595,8 +611,18 @@ export type DynamicGlidepathResult = {
   /**
    * Effective compound annual growth rate over the entire simulation period.
    * Calculated as (finalBalance / initialBalance)^(1/years) - 1
+   * NOTE: This includes growth from both contributions AND investment returns.
+   * For investment returns only, see averageAnnualInterestRate.
    */
   effectiveAnnualReturn: number;
+
+  /**
+   * Average annual interest rate based on actual investment returns.
+   * Calculated as (totalInterestEarned / years) / (initialBalance + totalContributions)
+   * This metric isolates investment performance from contribution growth.
+   * Returns 0 when no interest is earned.
+   */
+  averageAnnualInterestRate: number;
 
   /**
    * Average monthly return rate across all months in the simulation.
