@@ -183,6 +183,29 @@ This example showcases:
 
 More scenarios will be added as I continue to enhance the calculator's capabilities.
 
+## Breaking Changes & Migration
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history and migration guides.
+
+### v1.2.0 Breaking Changes
+
+The return types for calculator methods have been updated to include new metrics:
+
+**Affected Types:**
+- `CompoundingInterestObjectType` (from `getCompoundInterestWithAdditionalContributions`)
+- `DynamicGlidepathResult` (from `getCompoundInterestWithGlidepath`)
+
+**New Required Fields:**
+```typescript
+{
+  // ... existing fields ...
+  effectiveAnnualReturn: number;      // Account growth rate (contributions + returns)
+  averageAnnualInterestRate: number;  // Investment performance only
+}
+```
+
+**Migration:** If you're using TypeScript and consuming these return types, you'll need to handle the new fields. If you're using JavaScript, no changes are required - you'll simply have access to new data.
+
 ## Planned Enhancements
 - **Fee Management**: Include functionality to account for management fees and their long-term impact.
 - **Loan and Withdrawal Impact**: Assess the effect of loans or withdrawals on your retirement savings.
