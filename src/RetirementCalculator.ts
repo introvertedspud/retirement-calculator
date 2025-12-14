@@ -146,6 +146,50 @@ export default class RetirementCalculator {
   }
 
   /**
+   * Calculate return metrics from simulation results.
+   * Provides two distinct metrics:
+   * - effectiveAnnualReturn: Overall account growth rate (includes contributions)
+   * - averageAnnualInterestRate: Investment performance isolated from contributions
+   *
+   * @param initialBalance Starting balance
+   * @param finalBalance Ending balance
+   * @param totalContributions Total contributions made
+   * @param totalInterestEarned Total interest earned
+   * @param years Number of years
+   * @returns Return metrics object
+   * @private
+   */
+  private calculateReturnMetrics(
+    initialBalance: number,
+    finalBalance: number,
+    totalContributions: number,
+    totalInterestEarned: number,
+    years: number
+  ): { effectiveAnnualReturn: number; averageAnnualInterestRate: number } {
+    let effectiveAnnualReturn: number;
+
+    if (totalInterestEarned === 0) {
+      effectiveAnnualReturn = 0;
+    } else if (initialBalance === 0) {
+      effectiveAnnualReturn =
+        totalContributions > 0
+          ? Math.pow(finalBalance / totalContributions, 1 / years) - 1
+          : 0;
+    } else {
+      effectiveAnnualReturn =
+        Math.pow(finalBalance / initialBalance, 1 / years) - 1;
+    }
+
+    const totalInvested = initialBalance + totalContributions;
+    const averageAnnualInterestRate =
+      totalInvested > 0 && totalInterestEarned > 0
+        ? totalInterestEarned / years / totalInvested
+        : 0;
+
+    return { effectiveAnnualReturn, averageAnnualInterestRate };
+  }
+
+  /**
    * Calculate how often compounding should occur based on contribution and compounding frequencies.
    * @param contributionFrequency
    * @param compoundingFrequency
@@ -295,6 +339,23 @@ export default class RetirementCalculator {
     contributionFrequency: number,
     compoundingFrequency: number
   ): CompoundingInterestObjectType {
+    // Input validation
+    if (initialBalance < 0) {
+      throw new Error('Initial balance must be non-negative');
+    }
+
+    if (additionalContributionAmount < 0) {
+      throw new Error('Contribution amount must be non-negative');
+    }
+
+    if (years <= 0) {
+      throw new Error('Years must be positive');
+    }
+
+    if (contributionFrequency <= 0 || compoundingFrequency <= 0) {
+      throw new Error('Frequencies must be positive');
+    }
+
     const periods: number = this.getTotalPeriods(years, compoundingFrequency);
     const compoundMultiplier: number = this.getCompoundMultiplier(
       contributionFrequency,
@@ -344,27 +405,14 @@ export default class RetirementCalculator {
     }
 
     // Calculate return metrics
-    let effectiveAnnualReturn: number;
-
-    // If no interest was earned, return 0% (growth is only from contributions, not returns)
-    if (totalInterestEarned === 0) {
-      effectiveAnnualReturn = 0;
-    } else if (initialBalance === 0) {
-      // When starting from 0, calculate return based on contributions instead
-      effectiveAnnualReturn =
-        totalContributions > 0
-          ? Math.pow(balance / totalContributions, 1 / years) - 1
-          : 0;
-    } else {
-      effectiveAnnualReturn = Math.pow(balance / initialBalance, 1 / years) - 1;
-    }
-
-    // Calculate average annual interest rate based on actual investment returns
-    const totalInvested = initialBalance + totalContributions;
-    const averageAnnualInterestRate =
-      totalInvested > 0 && totalInterestEarned > 0
-        ? totalInterestEarned / years / totalInvested
-        : 0;
+    const { effectiveAnnualReturn, averageAnnualInterestRate } =
+      this.calculateReturnMetrics(
+        initialBalance,
+        balance,
+        totalContributions,
+        totalInterestEarned,
+        years
+      );
 
     return {
       balance,
@@ -488,6 +536,10 @@ export default class RetirementCalculator {
     const totalYears = endAge - startAge;
     const totalMonths = Math.ceil(totalYears * 12);
 
+    // Pre-sort waypoints once if using custom-waypoints mode
+    // This avoids sorting on every iteration of the monthly loop
+    const normalizedConfig = this.normalizeGlidepathConfig(glidepathConfig);
+
     // Initialize simulation state
     let balance = initialBalance;
     let totalContributions = 0;
@@ -513,7 +565,7 @@ export default class RetirementCalculator {
       // Get annual return rate for current age
       const annualReturnRate = this.calculateGlidepathReturn(
         currentAge,
-        glidepathConfig,
+        normalizedConfig,
         startAge,
         endAge
       );
@@ -548,7 +600,7 @@ export default class RetirementCalculator {
       // Get current equity weight for timeline data
       const currentEquityWeight = this.getCurrentEquityWeight(
         currentAge,
-        glidepathConfig,
+        normalizedConfig,
         startAge,
         endAge
       );
@@ -570,34 +622,20 @@ export default class RetirementCalculator {
     }
 
     // Calculate summary statistics
-    let effectiveAnnualReturn: number;
+    const { effectiveAnnualReturn, averageAnnualInterestRate } =
+      this.calculateReturnMetrics(
+        initialBalance,
+        balance,
+        totalContributions,
+        totalInterestEarned,
+        totalYears
+      );
 
-    // If no interest was earned, return 0% (growth is only from contributions, not returns)
-    if (totalInterestEarned === 0) {
-      effectiveAnnualReturn = 0;
-    } else if (initialBalance === 0) {
-      // When starting from 0, calculate return based on contributions instead
-      effectiveAnnualReturn =
-        totalContributions > 0
-          ? Math.pow(balance / totalContributions, 1 / totalYears) - 1
-          : 0;
-    } else {
-      effectiveAnnualReturn =
-        Math.pow(balance / initialBalance, 1 / totalYears) - 1;
-    }
     const averageMonthlyReturn =
       monthlyTimeline.reduce(
         (sum, entry) => sum + entry.currentMonthlyReturn,
         0
       ) / monthlyTimeline.length;
-
-    // Calculate average annual interest rate based on actual investment returns
-    // This isolates investment performance from contribution growth
-    const totalInvested = initialBalance + totalContributions;
-    const averageAnnualInterestRate =
-      totalInvested > 0 && totalInterestEarned > 0
-        ? totalInterestEarned / totalYears / totalInvested
-        : 0;
 
     // Round final balance to nearest cent
     const finalBalance = Math.round(balance * 100) / 100;
@@ -831,7 +869,8 @@ export default class RetirementCalculator {
     age: number,
     config: CustomWaypointsGlidepathConfig
   ): number {
-    const waypoints = [...config.waypoints].sort((a, b) => a.age - b.age);
+    // Waypoints are pre-sorted by normalizeGlidepathConfig
+    const waypoints = config.waypoints;
 
     if (waypoints.length === 0) {
       throw new Error(
@@ -884,7 +923,8 @@ export default class RetirementCalculator {
         if (config.valueType !== 'equityWeight') {
           return undefined;
         }
-        const waypoints = [...config.waypoints].sort((a, b) => a.age - b.age);
+        // Waypoints are pre-sorted by normalizeGlidepathConfig
+        const waypoints = config.waypoints;
         if (waypoints.length === 0) return undefined;
 
         return this.interpolateWaypoints(age, waypoints);
@@ -903,5 +943,25 @@ export default class RetirementCalculator {
    */
   private convertAnnualToMonthlyRate(annualRate: number): number {
     return Math.pow(1 + annualRate, 1 / 12) - 1;
+  }
+
+  /**
+   * Normalize glidepath config by pre-sorting waypoints if applicable.
+   * This optimization avoids repeated sorting during monthly simulation loops.
+   * @param config Original glidepath configuration
+   * @returns Configuration with sorted waypoints (if custom-waypoints mode)
+   * @private
+   */
+  private normalizeGlidepathConfig(
+    config: DynamicGlidepathConfig
+  ): DynamicGlidepathConfig {
+    if (config.mode !== 'custom-waypoints') {
+      return config;
+    }
+
+    return {
+      ...config,
+      waypoints: [...config.waypoints].sort((a, b) => a.age - b.age),
+    };
   }
 }

@@ -5,7 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2024-11-22
+## [2.0.0] - 2025-12-12
+
+### Breaking Changes
+
+- **Removed Error Infrastructure**: Deleted `DynamicGlidepathErrors.ts` and `GLIDEPATH_ERROR_MESSAGES` constant. The error classes were not being used and added ~900 lines of dead code. Standard JavaScript errors are thrown instead.
+
+### Added
+
+- **Input Validation**: `getCompoundInterestWithAdditionalContributions` now validates inputs and throws descriptive errors for negative balances, negative contributions, non-positive years, and non-positive frequencies
+- **Return Metrics Helper**: Extracted duplicated return metrics calculation into private `calculateReturnMetrics` method
+- **Waypoint Normalization**: Added `normalizeGlidepathConfig` to pre-sort custom waypoints once instead of on every iteration (performance improvement for 40-year simulations)
+
+### Fixed
+
+- **Package Configuration**: Changed `prepublish` to `prepublishOnly`, added `engines` and `sideEffects` fields
+- **Build Configuration**: Removed `examples/**/*` from tsconfig.json includes
+
+### Changed
+
+- **README**: Rewritten for clarity and brevity
+- **Examples**: Updated all example files with clearer explanations
+
+---
+
+## [1.2.0] - 2025-11-27
 
 ### Added
 
@@ -86,7 +110,7 @@ The second metric is closer to what you'd compare against market benchmarks like
 
 ---
 
-## [1.1.1] - 2024-11-22
+## [1.1.1] - 2025-11-22
 
 ### Fixed
 
@@ -94,7 +118,7 @@ The second metric is closer to what you'd compare against market benchmarks like
 
 ---
 
-## [1.1.0] - 2024-08-22
+## [1.1.0] - 2025-08-22
 
 ### Added
 

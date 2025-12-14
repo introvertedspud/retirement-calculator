@@ -7,7 +7,6 @@ export {
   GLIDEPATH_VALIDATION,
   GLIDEPATH_MATH,
   GLIDEPATH_TEMPLATES,
-  GLIDEPATH_ERROR_MESSAGES,
   GLIDEPATH_PERFORMANCE,
   GLIDEPATH_PRESETS,
 } from './src/constants/retirementCalculatorConstants';
@@ -45,41 +44,3 @@ export {
   isCustomWaypointsConfig,
   isSteppedReturnConfig,
 } from './src/types/retirementCalculatorTypes';
-
-// Error handling
-export {
-  GLIDEPATH_ERROR_CODES,
-  DynamicGlidepathError,
-  DynamicGlidepathValidationError,
-  DynamicGlidepathConfigurationError,
-  DynamicGlidepathCalculationError,
-  ValidationResultBuilder,
-  createAgeError,
-  createFinancialError,
-  createReturnRateError,
-  createAllocationError,
-  createConfigurationError,
-  createWaypointError,
-  createWarning,
-  createCalculationError,
-  groupByCategory,
-  groupBySeverity,
-  getSummary,
-  formatForConsole,
-  formatForAPI,
-  isDynamicGlidepathError,
-  isValidationError,
-  isConfigurationError,
-  isCalculationError,
-  isWarning,
-  isBlockingError,
-} from './src/errors/DynamicGlidepathErrors';
-
-// Error types
-export type {
-  GlidepathErrorCode,
-  ErrorSeverity,
-  ErrorCategory,
-  GlidepathErrorInfo,
-  ValidationResult,
-} from './src/errors/DynamicGlidepathErrors';
