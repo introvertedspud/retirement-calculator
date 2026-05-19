@@ -1,4 +1,8 @@
-import { CONTRIBUTION_FREQUENCY } from './constants/retirementCalculatorConstants';
+import {
+  CONTRIBUTION_FREQUENCY,
+  GLIDEPATH_DEFAULTS,
+  GLIDEPATH_VALIDATION,
+} from './constants/retirementCalculatorConstants';
 import type {
   CompoundingInterestObjectType,
   CompoundingPeriodDetailsType,
@@ -19,6 +23,134 @@ import type {
  * including inflation adjustments, balance after inflation, and compound interest calculations.
  */
 export default class RetirementCalculator {
+  /**
+   * Validate that a numeric input is a finite real number.
+   * Rejects NaN, Infinity, -Infinity, and non-number types.
+   * @private
+   */
+  private validateFiniteNumber(value: number, name: string): void {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error(`${name} must be a finite number (got ${String(value)})`);
+    }
+  }
+
+  /**
+   * Validate that a numeric input is finite and non-negative (>= 0).
+   * @private
+   */
+  private validateNonNegativeFinite(value: number, name: string): void {
+    this.validateFiniteNumber(value, name);
+    if (value < 0) {
+      throw new Error(`${name} must be non-negative (got ${value})`);
+    }
+  }
+
+  /**
+   * Validate that a numeric input is finite and strictly positive (> 0).
+   * @private
+   */
+  private validatePositiveFinite(value: number, name: string): void {
+    this.validateFiniteNumber(value, name);
+    if (value <= 0) {
+      throw new Error(`${name} must be positive (got ${value})`);
+    }
+  }
+
+  /**
+   * Validate that a numeric input is finite and within [MIN_WEIGHT, MAX_WEIGHT].
+   * Used for equity allocation weights (typically [0, 1]).
+   * @private
+   */
+  private validateEquityWeight(value: number, name: string): void {
+    const { MIN_WEIGHT, MAX_WEIGHT } = GLIDEPATH_VALIDATION.ALLOCATIONS;
+    this.validateFiniteNumber(value, name);
+    if (value < MIN_WEIGHT || value > MAX_WEIGHT) {
+      throw new Error(
+        `${name} must be between ${MIN_WEIGHT} and ${MAX_WEIGHT} (got ${value})`
+      );
+    }
+  }
+
+  /**
+   * Validate a DynamicGlidepathConfig against GLIDEPATH_VALIDATION constraints.
+   * Mode-dispatched; throws a descriptive Error for any invariant violation.
+   * @private
+   */
+  private validateGlidepathConfig(config: DynamicGlidepathConfig): void {
+    const { WAYPOINTS } = GLIDEPATH_VALIDATION;
+
+    switch (config.mode) {
+      case 'fixed-return':
+        this.validateFiniteNumber(config.startReturn, 'config.startReturn');
+        this.validateFiniteNumber(config.endReturn, 'config.endReturn');
+        return;
+      case 'stepped-return':
+        this.validateFiniteNumber(config.baseReturn, 'config.baseReturn');
+        this.validateFiniteNumber(
+          config.terminalReturn,
+          'config.terminalReturn'
+        );
+        this.validateFiniteNumber(config.declineRate, 'config.declineRate');
+        this.validatePositiveFinite(
+          config.declineStartAge,
+          'config.declineStartAge'
+        );
+        this.validatePositiveFinite(config.terminalAge, 'config.terminalAge');
+        if (config.declineStartAge > config.terminalAge) {
+          throw new Error(
+            'config.declineStartAge must be <= config.terminalAge'
+          );
+        }
+        return;
+      case 'allocation-based':
+        this.validateEquityWeight(
+          config.startEquityWeight,
+          'config.startEquityWeight'
+        );
+        this.validateEquityWeight(
+          config.endEquityWeight,
+          'config.endEquityWeight'
+        );
+        this.validateFiniteNumber(config.equityReturn, 'config.equityReturn');
+        this.validateFiniteNumber(config.bondReturn, 'config.bondReturn');
+        return;
+      case 'custom-waypoints':
+        if (
+          !Array.isArray(config.waypoints) ||
+          config.waypoints.length < WAYPOINTS.MIN_WAYPOINTS
+        ) {
+          throw new Error(
+            `config.waypoints must contain at least ${WAYPOINTS.MIN_WAYPOINTS} waypoint(s)`
+          );
+        }
+        if (config.waypoints.length > WAYPOINTS.MAX_WAYPOINTS) {
+          throw new Error(
+            `config.waypoints exceeds maximum of ${WAYPOINTS.MAX_WAYPOINTS} entries`
+          );
+        }
+        for (const wp of config.waypoints) {
+          this.validatePositiveFinite(wp.age, 'waypoint.age');
+          this.validateFiniteNumber(wp.value, 'waypoint.value');
+          if (config.valueType === 'equityWeight') {
+            this.validateEquityWeight(wp.value, 'waypoint.value');
+          }
+        }
+        if (config.equityReturn !== undefined) {
+          this.validateFiniteNumber(config.equityReturn, 'config.equityReturn');
+        }
+        if (config.bondReturn !== undefined) {
+          this.validateFiniteNumber(config.bondReturn, 'config.bondReturn');
+        }
+        return;
+      default: {
+        const _exhaustive: never = config;
+        throw new Error(
+          `Unsupported glidepath mode: ${JSON.stringify(_exhaustive)}`
+        );
+      }
+    }
+  }
+
   /**
    * Formats a number with commas and limits it to two decimal places.
    * @param value The number to be formatted.
@@ -43,6 +175,9 @@ export default class RetirementCalculator {
     years: number,
     inflationRate: number
   ): number {
+    this.validateNonNegativeFinite(desiredBalance, 'desiredBalance');
+    this.validateNonNegativeFinite(years, 'years');
+    this.validateFiniteNumber(inflationRate, 'inflationRate');
     return desiredBalance * (1 + inflationRate) ** years;
   }
 
@@ -70,6 +205,8 @@ export default class RetirementCalculator {
     yearlySpend: number,
     yearlyWithdrawalRate: number = 0.04
   ): number {
+    this.validateNonNegativeFinite(yearlySpend, 'yearlySpend');
+    this.validatePositiveFinite(yearlyWithdrawalRate, 'yearlyWithdrawalRate');
     return yearlySpend / yearlyWithdrawalRate;
   }
 
@@ -82,6 +219,8 @@ export default class RetirementCalculator {
     balance: number,
     yearlyWithdrawalRate: number
   ): number {
+    this.validateNonNegativeFinite(balance, 'balance');
+    this.validateFiniteNumber(yearlyWithdrawalRate, 'yearlyWithdrawalRate');
     return balance * yearlyWithdrawalRate;
   }
 
@@ -273,6 +412,14 @@ export default class RetirementCalculator {
     compoundingFrequency: number,
     inflationRate: number = 0.02
   ): DetermineContributionType {
+    this.validateNonNegativeFinite(startingBalance, 'startingBalance');
+    this.validateNonNegativeFinite(desiredBalance, 'desiredBalance');
+    this.validatePositiveFinite(years, 'years');
+    this.validateFiniteNumber(interestRate, 'interestRate');
+    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
+    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
+    this.validateFiniteNumber(inflationRate, 'inflationRate');
+
     const periods: number = this.getTotalPeriods(years, compoundingFrequency);
     const interestRatePerPeriod: number = this.getInterestRatePerPeriod(
       interestRate,
@@ -340,21 +487,15 @@ export default class RetirementCalculator {
     compoundingFrequency: number
   ): CompoundingInterestObjectType {
     // Input validation
-    if (initialBalance < 0) {
-      throw new Error('Initial balance must be non-negative');
-    }
-
-    if (additionalContributionAmount < 0) {
-      throw new Error('Contribution amount must be non-negative');
-    }
-
-    if (years <= 0) {
-      throw new Error('Years must be positive');
-    }
-
-    if (contributionFrequency <= 0 || compoundingFrequency <= 0) {
-      throw new Error('Frequencies must be positive');
-    }
+    this.validateNonNegativeFinite(initialBalance, 'initialBalance');
+    this.validateNonNegativeFinite(
+      additionalContributionAmount,
+      'additionalContributionAmount'
+    );
+    this.validatePositiveFinite(years, 'years');
+    this.validateFiniteNumber(interestRate, 'interestRate');
+    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
+    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
 
     const periods: number = this.getTotalPeriods(years, compoundingFrequency);
     const compoundMultiplier: number = this.getCompoundMultiplier(
@@ -512,25 +653,16 @@ export default class RetirementCalculator {
     contributionTiming: ContributionTiming = 'start'
   ): DynamicGlidepathResult {
     // Input validation
-    if (initialBalance < 0) {
-      throw new Error('Initial balance must be non-negative');
-    }
-
-    if (contributionAmount < 0) {
-      throw new Error('Contribution amount must be non-negative');
-    }
-
-    if (startAge <= 0 || endAge <= 0) {
-      throw new Error('Ages must be positive');
-    }
-
+    this.validateNonNegativeFinite(initialBalance, 'initialBalance');
+    this.validateNonNegativeFinite(contributionAmount, 'contributionAmount');
+    this.validatePositiveFinite(startAge, 'startAge');
+    this.validatePositiveFinite(endAge, 'endAge');
     if (startAge >= endAge) {
-      throw new Error('Start age must be less than end age');
+      throw new Error('startAge must be less than endAge');
     }
-
-    if (contributionFrequency <= 0 || compoundingFrequency <= 0) {
-      throw new Error('Frequencies must be positive');
-    }
+    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
+    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
+    this.validateGlidepathConfig(glidepathConfig);
 
     // Calculate simulation parameters
     const totalYears = endAge - startAge;
@@ -884,9 +1016,14 @@ export default class RetirementCalculator {
     if (config.valueType === 'return') {
       return interpolatedValue;
     } else {
-      // equityWeight - blend with equity/bond returns
-      const equityReturn = config.equityReturn ?? 0.1;
-      const bondReturn = config.bondReturn ?? 0.04;
+      // equityWeight - blend with equity/bond returns.
+      // Defaults reconciled with GLIDEPATH_DEFAULTS.ALLOCATION_BASED so callers
+      // who omit returns get the same blend as the allocation-based mode.
+      const equityReturn =
+        config.equityReturn ??
+        GLIDEPATH_DEFAULTS.ALLOCATION_BASED.EQUITY_RETURN;
+      const bondReturn =
+        config.bondReturn ?? GLIDEPATH_DEFAULTS.ALLOCATION_BASED.BOND_RETURN;
       return this.calculateBlendedReturn(
         interpolatedValue,
         equityReturn,
