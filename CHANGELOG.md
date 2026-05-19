@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-05-19
+
+### Breaking Changes
+
+- **`averageAnnualInterestRate` is now the time-weighted annual return (TWR)** of the investment strategy itself — independent of contribution timing. The prior formula (`totalInterest / years / (initialBalance + totalContributions)`) was not a real return metric and was not validly comparable to market benchmarks. Code that used this field as if it were the strategy's actual return will now get the correct number.
+
+### Why
+
+The previous formula divided total interest earned by the nominal sum of dollars invested, treating each dollar as if it had been deposited at time zero. This systematically understated the strategy's actual return — sometimes dramatically. The v1.2.0 CHANGELOG and README invited users to compare the value against the S&P 500. The formula did not support that comparison.
+
+The new metric is the annualized geometric mean of the period-by-period returns. For constant-rate strategies this reduces to the closed-form effective annual yield. For glidepath strategies it is the time-weighted average of the return path. Either way, it answers: "if I'd held this strategy over this window, what was the annual return?"
+
+### Migration
+
+`averageAnnualInterestRate` values change for any scenario with contributions. Common impacts:
+
+| Scenario | Old value | New value |
+|---|---|---|
+| Traditional `getCompoundInterestWithAdditionalContributions(10k, 1k, 10y, 8%, monthly)` | ~5.6% | ~8.30% (EAR of 8% APR) |
+| Glidepath `getCompoundInterestWithGlidepath(...)` with 10%→5.5% over 40y, monthly contribs | ~4-5% | ~7-8% (time-weighted avg) |
+| Any scenario with no contributions | unchanged (already correct) | unchanged |
+
+The new number is what most users actually want: "what return did my investments earn over this period?". It is the metric that compares meaningfully to the S&P 500 over the same window.
+
+**`effectiveAnnualReturn` is unchanged.** It remains the account-growth metric `(finalBalance / initialBalance)^(1/years) - 1`, answering "how fast did my account grow?" — which includes the effect of contributions.
+
+#### What you need to do
+
+If your code surfaces `averageAnnualInterestRate` to users as "investment return" or compares it to benchmarks, no code change is needed — the numbers just become honest. Worth noting that displayed numbers will jump up for typical retirement scenarios.
+
+If your code asserts on specific `averageAnnualInterestRate` values in tests, update the expected values. The new formula:
+- For constant-rate methods: `Math.pow(1 + interestRate / compoundingFrequency, compoundingFrequency) - 1`
+- For glidepath: annualized geometric mean of `monthlyTimeline[i].currentMonthlyReturn`
+
+### Fixed
+
+- README's "Three glidepath modes" claim was incorrect — there are four (`stepped-return` was missing). The README and JSDoc are now accurate.
+
+### Changed
+
+- JSDoc on `effectiveAnnualReturn` and `averageAnnualInterestRate` rewritten to describe what they actually compute and when each is the right choice.
+
+---
+
 ## [2.1.0] - 2026-05-19
 
 ### Added
