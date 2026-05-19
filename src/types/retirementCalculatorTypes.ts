@@ -546,7 +546,7 @@ export type MonthlyTimelineEntry = {
  *
  * @example
  * ```typescript
- * const result: DynamicGlidepathResult = calculator.getCompoundInterestWithDynamicGlidepath(
+ * const result: DynamicGlidepathResult = calculator.getCompoundInterestWithGlidepath(
  *   25000, 1000, 30, 65, config
  * );
  *
@@ -629,81 +629,6 @@ export type DynamicGlidepathResult = {
    * Simple arithmetic mean of all monthly return rates used.
    */
   averageMonthlyReturn: number;
-};
-
-// ============================================================================
-// ERROR TYPES
-// ============================================================================
-
-/**
- * Base error type for retirement calculator-specific errors.
- */
-export type RetirementCalculatorError = Error & {
-  name: 'RetirementCalculatorError';
-};
-
-/**
- * Error thrown when age parameters are invalid.
- */
-export type InvalidAgeRangeError = RetirementCalculatorError & {
-  name: 'InvalidAgeRangeError';
-  message: 'startAge must be less than endAge and both must be positive';
-};
-
-/**
- * Error thrown when financial parameters are invalid.
- */
-export type InvalidFinancialParameterError = RetirementCalculatorError & {
-  name: 'InvalidFinancialParameterError';
-  message: 'initialBalance and monthlyContribution must be non-negative';
-};
-
-/**
- * Error thrown when return rates are invalid.
- */
-export type InvalidReturnRateError = RetirementCalculatorError & {
-  name: 'InvalidReturnRateError';
-  message: 'Return rates must be greater than -1.0 (cannot lose more than 100%)';
-};
-
-/**
- * Error thrown when allocation weights are invalid.
- */
-export type InvalidAllocationError = RetirementCalculatorError & {
-  name: 'InvalidAllocationError';
-  message: 'Equity weights must be between 0.0 and 1.0 inclusive';
-};
-
-/**
- * Error thrown when glidepath configuration is invalid.
- */
-export type InvalidGlidepathConfigError = RetirementCalculatorError & {
-  name: 'InvalidGlidepathConfigError';
-  message: string; // Variable message based on specific validation failure
-};
-
-/**
- * Error thrown when waypoints configuration is invalid.
- */
-export type InvalidWaypointsError = RetirementCalculatorError & {
-  name: 'InvalidWaypointsError';
-  message: 'Waypoints array must contain at least one valid waypoint';
-};
-
-/**
- * Error thrown when calculation results in numeric overflow.
- */
-export type CalculationOverflowError = RetirementCalculatorError & {
-  name: 'CalculationOverflowError';
-  message: 'Calculation resulted in numeric overflow';
-};
-
-/**
- * Error thrown when numerical precision loss is detected.
- */
-export type NumericalPrecisionError = RetirementCalculatorError & {
-  name: 'NumericalPrecisionError';
-  message: 'Numerical precision loss detected in calculation';
 };
 
 // ============================================================================
