@@ -1505,7 +1505,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
         expect(result.finalBalance).toBeGreaterThan(0);
       });
 
-      it('effectiveAnnualReturn is 0 when both initialBalance and contributions are 0', () => {
+      it('returns finite metrics when both initialBalance and contributions are 0', () => {
         const result = calculator.getCompoundInterestWithGlidepath(
           0,
           0,
@@ -1513,9 +1513,19 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           35,
           validConfig
         );
+        // effectiveAnnualReturn is an account-growth metric — nothing to grow.
         expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
         expect(result.effectiveAnnualReturn).toBe(0);
-        expect(result.averageAnnualInterestRate).toBe(0);
+        // averageAnnualInterestRate is the time-weighted return of the
+        // glidepath itself — between the start and end returns regardless
+        // of participation.
+        expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
+        expect(result.averageAnnualInterestRate).toBeGreaterThan(
+          validConfig.endReturn
+        );
+        expect(result.averageAnnualInterestRate).toBeLessThan(
+          validConfig.startReturn
+        );
       });
     });
 
@@ -1559,6 +1569,95 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           10
         );
       });
+    });
+  });
+
+  describe('Time-weighted return — averageAnnualInterestRate (Phase 3)', () => {
+    it('returns the input rate exactly for a flat glidepath (EAR convention)', () => {
+      // Fixed-return glidepath with start == end is a flat rate. Glidepath
+      // uses EAR convention internally, so input 0.08 → output ~0.08.
+      const flat: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.08,
+        endReturn: 0.08,
+      };
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        25,
+        35,
+        flat
+      );
+      expect(result.averageAnnualInterestRate).toBeCloseTo(0.08, 10);
+    });
+
+    it('is between the start and end rates for a fixed-return glidepath', () => {
+      const config: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.1,
+        endReturn: 0.055,
+      };
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        25,
+        65,
+        config
+      );
+      expect(result.averageAnnualInterestRate).toBeGreaterThan(
+        config.endReturn
+      );
+      expect(result.averageAnnualInterestRate).toBeLessThan(config.startReturn);
+    });
+
+    it('is independent of contribution amount (TWR isolates investment performance)', () => {
+      const config: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.1,
+        endReturn: 0.055,
+      };
+      const noContrib = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        25,
+        65,
+        config
+      );
+      const heavyContrib = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        2000,
+        25,
+        65,
+        config
+      );
+      expect(heavyContrib.averageAnnualInterestRate).toBeCloseTo(
+        noContrib.averageAnnualInterestRate,
+        12
+      );
+    });
+
+    it('matches the manually-computed TWR from monthlyTimeline returns', () => {
+      const config: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.12,
+        endReturn: 0.04,
+      };
+      const result = calculator.getCompoundInterestWithGlidepath(
+        50000,
+        500,
+        30,
+        65,
+        config
+      );
+
+      // Independently compute TWR from the timeline and verify it matches.
+      let product = 1;
+      for (const entry of result.monthlyTimeline) {
+        product *= 1 + entry.currentMonthlyReturn;
+      }
+      const expectedTwr =
+        Math.pow(product, 12 / result.monthlyTimeline.length) - 1;
+      expect(result.averageAnnualInterestRate).toBeCloseTo(expectedTwr, 12);
     });
   });
 });
