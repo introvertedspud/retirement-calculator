@@ -6,6 +6,7 @@
 import RetirementCalculator from '../src/RetirementCalculator';
 import { GLIDEPATH_PRESETS } from '../src/constants/retirementCalculatorConstants';
 import type {
+  DynamicGlidepathConfig,
   FixedReturnGlidepathConfig,
   AllocationBasedGlidepathConfig,
   CustomWaypointsGlidepathConfig,
@@ -1179,7 +1180,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
         },
       ];
 
-      edgeCaseConfigs.forEach((config, index) => {
+      edgeCaseConfigs.forEach((config) => {
         // Test that function either succeeds or throws a proper error
         expect(() => {
           const result = calculator.getCompoundInterestWithGlidepath(
@@ -1200,8 +1201,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
       // Create an invalid config to trigger the default case
       const invalidConfig = {
         mode: 'invalid-mode',
-        // other properties...
-      } as any;
+      } as unknown as DynamicGlidepathConfig;
 
       expect(() => {
         calculator.getCompoundInterestWithGlidepath(
@@ -1272,7 +1272,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
         },
       ];
 
-      testCases.forEach(({ config, startAge, endAge, expectedRate }, index) => {
+      testCases.forEach(({ config, startAge, endAge, expectedRate }) => {
         const result = calculator.getCompoundInterestWithGlidepath(
           10000,
           1000,

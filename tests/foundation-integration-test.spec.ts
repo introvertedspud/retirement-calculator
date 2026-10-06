@@ -406,9 +406,8 @@ describe('Dynamic Glidepath Foundation Layer Integration', () => {
         GLIDEPATH_MATH.PRECISION.CURRENCY_MULTIPLIER;
 
       expect(rounded).toBe(123.46);
-      const decimalPart = rounded.toString().split('.')[1];
-      const decimalLength = decimalPart !== undefined ? decimalPart.length : 0;
-      expect(decimalLength).toBeLessThanOrEqual(
+      const [, decimalPart = ''] = rounded.toString().split('.');
+      expect(decimalPart.length).toBeLessThanOrEqual(
         GLIDEPATH_MATH.PRECISION.CURRENCY_DECIMALS
       );
     });
