@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - 2026-05-19
+## [3.0.0] - 2026-10-06
 
 ### Breaking Changes
 
@@ -72,6 +72,8 @@ If your code asserts on specific `averageAnnualInterestRate` values in tests, up
 ---
 
 ## [2.1.0] - 2026-05-19
+
+_Not published to npm on its own; these changes ship as part of 3.0.0._
 
 ### Added
 

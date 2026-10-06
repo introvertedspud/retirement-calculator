@@ -80,7 +80,7 @@ The two are equal whenever the return never changes, which is why the constant-r
 - `averageAnnualInterestRate` ≈ **7.75%** — the return of the strategy itself
 - `moneyWeightedAnnualReturn` ≈ **7.38%** — what the invested dollars earned, on average
 
-> **v3.0.0 note:** `averageAnnualInterestRate` changed meaning and `effectiveAnnualReturn` was replaced by `moneyWeightedAnnualReturn`. See [CHANGELOG.md](CHANGELOG.md#300---2026-05-19) for migration details.
+> **v3.0.0 note:** `averageAnnualInterestRate` changed meaning and `effectiveAnnualReturn` was replaced by `moneyWeightedAnnualReturn`. See [CHANGELOG.md](CHANGELOG.md#300---2026-10-06) for migration details.
 
 ## How rates and frequencies are interpreted
 
