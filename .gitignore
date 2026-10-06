@@ -21,6 +21,9 @@ Thumbs.db
 # Test artifacts
 coverage/
 
+# Generated API docs (built and deployed by the Docs workflow)
+docs/
+
 # Build scripts and configurations
 # buildScript.sh
 # any other specific files/directories
