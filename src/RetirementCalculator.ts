@@ -961,7 +961,7 @@ export default class RetirementCalculator {
    */
   private interpolateWaypoints(
     age: number,
-    waypoints: Array<{ age: number; value: number }>
+    waypoints: { age: number; value: number }[]
   ): number {
     if (waypoints.length === 0) {
       throw new Error('Waypoints array must contain at least one waypoint');

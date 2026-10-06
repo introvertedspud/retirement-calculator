@@ -205,10 +205,7 @@ export type ContributionTiming = 'start' | 'end';
  * Identifies the type of glidepath strategy being used.
  */
 export type GlidepathMode =
-  | 'fixed-return'
-  | 'allocation-based'
-  | 'custom-waypoints'
-  | 'stepped-return';
+  'fixed-return' | 'allocation-based' | 'custom-waypoints' | 'stepped-return';
 
 // ============================================================================
 // GLIDEPATH CONFIGURATION TYPES
