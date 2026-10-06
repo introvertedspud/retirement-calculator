@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-19
+
+### Added
+
+- **Strict Input Validation**: All public methods now reject `NaN`, `Infinity`, and `-Infinity` with descriptive errors (e.g. `"initialBalance must be a finite number (got NaN)"`). Previously these values silently propagated through `< 0` guards and produced `NaN` results.
+- **`getContributionNeededForDesiredBalance` Validation**: This method previously had zero input validation. Now matches the other public methods (rejects negative `startingBalance`/`desiredBalance`, non-positive `years` and frequencies, non-finite rates).
+- **Glidepath Config Validation**: `GLIDEPATH_VALIDATION` constants are now wired into the glidepath entry path. Equity weights outside `[0, 1]` throw; waypoint ages must be positive and values must be finite; stepped-return configs require `declineStartAge <= terminalAge`.
+- **Regression Guard**: Added direct test asserting `effectiveAnnualReturn` is finite on zero-initial-balance scenarios (locks in the v1.1.1 fix).
+
+### Changed
+
+- **Error Message Format**: Errors now include the parameter name and offending value, e.g. `"initialBalance must be non-negative (got -1000)"`. Callers asserting on exact pre-existing error strings will need to update assertions to match the new format.
+- **`getDesiredBalanceByYearlySpend(_, 0)`**: Now throws instead of returning `Infinity`.
+- **Custom-waypoints `valueType: 'equityWeight'` defaults reconciled**: When `equityReturn`/`bondReturn` are omitted, the calculator now uses `GLIDEPATH_DEFAULTS.ALLOCATION_BASED` (`0.12` equity / `0.04` bond), matching allocation-based mode. Previously used orphaned `0.10` / `0.04`.
+
+### Fixed
+
+- **Tarball Hygiene**: Published tarball no longer ships test specs, examples, source maps, or the v2.0.0-deleted `DynamicGlidepathErrors.*` artifacts. Build now scoped via a new `tsconfig.build.json` and prefixed with a `clean` step. Tarball impact: **81 kB → 21 kB packed, 474 kB → 99 kB unpacked, 48 → 11 files**.
+- **JSDoc Typo**: `DynamicGlidepathResult` `@example` referenced a non-existent method `getCompoundInterestWithDynamicGlidepath` (correct name is `getCompoundInterestWithGlidepath`). This was surfacing on the published TypeDoc site.
+- **Stale Type Aliases**: Removed 9 unused error type aliases (`RetirementCalculatorError`, `InvalidAgeRangeError`, etc.) left behind by the v2.0.0 error-class deletion.
+
+### Migration
+
+Most callers will be unaffected. Two situations require code changes:
+
+1. **Callers passing `NaN`/`Infinity` and depending on `NaN` results** (or not handling the resulting `NaN` propagation): these calls now throw. Validate inputs upstream.
+2. **Callers asserting on exact error message strings**: update to substring matches that don't depend on the surrounding text. The new format is `"<paramName> must be <constraint> (got <value>)"`.
+
+Two narrower edge cases:
+- `getDesiredBalanceByYearlySpend(spend, 0)` now throws instead of returning `Infinity`.
+- Custom-waypoints configs with `valueType: 'equityWeight'` that omit `equityReturn`/`bondReturn` will now blend with `0.12`/`0.04` instead of `0.10`/`0.04`. To preserve the prior numbers, pass the values explicitly.
+
+---
+
 ## [2.0.0] - 2025-12-12
 
 ### Breaking Changes

@@ -131,28 +131,30 @@ describe('RetirementCalculator', (): void => {
       }
     );
 
-    it('should not break when forcing a negative balance', (): void => {
-      const startingBalance: number = -100000;
-      const desiredBalance: number = -200000;
-
-      const contributionFrequency: number = 12; // Monthly
-      const compoundingFrequency: number = 12; // Monthly
-
-      const result: DetermineContributionType =
+    it('should throw when starting balance is negative', (): void => {
+      expect(() =>
         calculator.getContributionNeededForDesiredBalance(
-          startingBalance,
-          desiredBalance,
+          -100000,
+          200000,
           years,
           interestRate,
-          contributionFrequency,
-          compoundingFrequency
-        );
+          12,
+          12
+        )
+      ).toThrow('startingBalance must be non-negative');
+    });
 
-      expect(result.contributionNeededPerPeriod).toBe(0);
-      expect(result.desiredBalanceWithInflation).toBe(-243798.88399895147);
-      expect(result.desiredBalanceValueAfterInflation).toBe(
-        -164069.65997503104
-      );
+    it('should throw when desired balance is negative', (): void => {
+      expect(() =>
+        calculator.getContributionNeededForDesiredBalance(
+          100000,
+          -200000,
+          years,
+          interestRate,
+          12,
+          12
+        )
+      ).toThrow('desiredBalance must be non-negative');
     });
 
     it('should handle zero interest rate correctly', (): void => {
@@ -800,6 +802,165 @@ describe('RetirementCalculator', (): void => {
           year: 2,
         },
       ]);
+    });
+  });
+
+  describe('Boundary discipline (Phase 2)', (): void => {
+    describe('adjustDesiredBalanceDueToInflation', (): void => {
+      it('throws on NaN desiredBalance', (): void => {
+        expect(() =>
+          calculator.adjustDesiredBalanceDueToInflation(NaN, 10, 0.03)
+        ).toThrow('desiredBalance must be a finite number');
+      });
+      it('throws on Infinity inflationRate', (): void => {
+        expect(() =>
+          calculator.adjustDesiredBalanceDueToInflation(100000, 10, Infinity)
+        ).toThrow('inflationRate must be a finite number');
+      });
+      it('throws on negative years', (): void => {
+        expect(() =>
+          calculator.adjustDesiredBalanceDueToInflation(100000, -5, 0.03)
+        ).toThrow('years must be non-negative');
+      });
+    });
+
+    describe('getDesiredBalanceByYearlySpend', (): void => {
+      it('throws on zero withdrawal rate (would have returned Infinity)', (): void => {
+        expect(() =>
+          calculator.getDesiredBalanceByYearlySpend(40000, 0)
+        ).toThrow('yearlyWithdrawalRate must be positive');
+      });
+      it('throws on negative withdrawal rate', (): void => {
+        expect(() =>
+          calculator.getDesiredBalanceByYearlySpend(40000, -0.04)
+        ).toThrow('yearlyWithdrawalRate must be positive');
+      });
+      it('throws on NaN yearlySpend', (): void => {
+        expect(() =>
+          calculator.getDesiredBalanceByYearlySpend(NaN, 0.04)
+        ).toThrow('yearlySpend must be a finite number');
+      });
+    });
+
+    describe('getYearlyWithdrawalAmountByBalance', (): void => {
+      it('throws on NaN balance', (): void => {
+        expect(() =>
+          calculator.getYearlyWithdrawalAmountByBalance(NaN, 0.04)
+        ).toThrow('balance must be a finite number');
+      });
+      it('throws on Infinity withdrawal rate', (): void => {
+        expect(() =>
+          calculator.getYearlyWithdrawalAmountByBalance(1_000_000, Infinity)
+        ).toThrow('yearlyWithdrawalRate must be a finite number');
+      });
+    });
+
+    describe('getContributionNeededForDesiredBalance', (): void => {
+      it('throws on NaN years', (): void => {
+        expect(() =>
+          calculator.getContributionNeededForDesiredBalance(
+            0,
+            500000,
+            NaN,
+            0.07,
+            12,
+            12
+          )
+        ).toThrow('years must be a finite number');
+      });
+      it('throws on Infinity interestRate', (): void => {
+        expect(() =>
+          calculator.getContributionNeededForDesiredBalance(
+            0,
+            500000,
+            30,
+            Infinity,
+            12,
+            12
+          )
+        ).toThrow('interestRate must be a finite number');
+      });
+      it('throws on zero compoundingFrequency', (): void => {
+        expect(() =>
+          calculator.getContributionNeededForDesiredBalance(
+            0,
+            500000,
+            30,
+            0.07,
+            12,
+            0
+          )
+        ).toThrow('compoundingFrequency must be positive');
+      });
+    });
+
+    describe('getCompoundInterestWithAdditionalContributions', (): void => {
+      it('throws on NaN initialBalance (regression guard for silent NaN propagation)', (): void => {
+        expect(() =>
+          calculator.getCompoundInterestWithAdditionalContributions(
+            NaN,
+            1000,
+            10,
+            0.07,
+            12,
+            12
+          )
+        ).toThrow('initialBalance must be a finite number');
+      });
+      it('throws on Infinity contribution', (): void => {
+        expect(() =>
+          calculator.getCompoundInterestWithAdditionalContributions(
+            10000,
+            Infinity,
+            10,
+            0.07,
+            12,
+            12
+          )
+        ).toThrow('additionalContributionAmount must be a finite number');
+      });
+      it('throws on NaN interestRate (was silently propagating to NaN result)', (): void => {
+        expect(() =>
+          calculator.getCompoundInterestWithAdditionalContributions(
+            10000,
+            1000,
+            10,
+            NaN,
+            12,
+            12
+          )
+        ).toThrow('interestRate must be a finite number');
+      });
+
+      it('returns finite effectiveAnnualReturn when initialBalance is 0 (bc3f3b7 regression guard)', (): void => {
+        const result: CompoundingInterestObjectType =
+          calculator.getCompoundInterestWithAdditionalContributions(
+            0,
+            500,
+            10,
+            0.07,
+            12,
+            12
+          );
+        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
+        expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
+        expect(Number.isFinite(result.balance)).toBe(true);
+      });
+
+      it('returns finite effectiveAnnualReturn when there are zero contributions and zero balance', (): void => {
+        const result: CompoundingInterestObjectType =
+          calculator.getCompoundInterestWithAdditionalContributions(
+            0,
+            0,
+            10,
+            0.07,
+            12,
+            12
+          );
+        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
+        expect(result.effectiveAnnualReturn).toBe(0);
+        expect(result.averageAnnualInterestRate).toBe(0);
+      });
     });
   });
 });

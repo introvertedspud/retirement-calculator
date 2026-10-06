@@ -40,7 +40,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           65,
           validConfig
         );
-      }).toThrow('Initial balance must be non-negative');
+      }).toThrow('initialBalance must be non-negative');
     });
 
     test('should throw error for negative contribution amount', () => {
@@ -52,7 +52,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           65,
           validConfig
         );
-      }).toThrow('Contribution amount must be non-negative');
+      }).toThrow('contributionAmount must be non-negative');
     });
 
     test('should throw error for non-positive start age', () => {
@@ -64,7 +64,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           65,
           validConfig
         );
-      }).toThrow('Ages must be positive');
+      }).toThrow('startAge must be positive');
     });
 
     test('should throw error for non-positive end age', () => {
@@ -76,7 +76,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           0,
           validConfig
         );
-      }).toThrow('Ages must be positive');
+      }).toThrow('endAge must be positive');
     });
 
     test('should throw error when start age >= end age', () => {
@@ -88,7 +88,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           25,
           validConfig
         );
-      }).toThrow('Start age must be less than end age');
+      }).toThrow('startAge must be less than endAge');
     });
 
     test('should throw error for non-positive contribution frequency', () => {
@@ -101,7 +101,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           validConfig,
           0
         );
-      }).toThrow('Frequencies must be positive');
+      }).toThrow('contributionFrequency must be positive');
     });
 
     test('should throw error for non-positive compounding frequency', () => {
@@ -115,7 +115,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           12,
           0
         );
-      }).toThrow('Frequencies must be positive');
+      }).toThrow('compoundingFrequency must be positive');
     });
 
     test('should accept valid inputs without throwing', () => {
@@ -624,9 +624,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           65,
           emptyConfig
         );
-      }).toThrow(
-        'Custom waypoints configuration must have at least one waypoint'
-      );
+      }).toThrow('config.waypoints must contain at least');
     });
 
     test('should handle single waypoint', () => {
@@ -1153,9 +1151,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           35,
           invalidConfig
         );
-      }).toThrow(
-        'Custom waypoints configuration must have at least one waypoint'
-      );
+      }).toThrow('config.waypoints must contain at least');
     });
 
     test('should handle edge cases that trigger interpolation fallback paths', () => {
@@ -1335,6 +1331,234 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
       expect(result.monthlyTimeline[0].currentAnnualReturn).toBeGreaterThan(
         0.05
       );
+    });
+  });
+
+  describe('Boundary discipline (Phase 2)', () => {
+    const validConfig: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0.1,
+      endReturn: 0.055,
+    };
+
+    describe('Non-finite numeric inputs', () => {
+      it('throws on NaN initialBalance', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(
+            NaN,
+            500,
+            25,
+            65,
+            validConfig
+          )
+        ).toThrow('initialBalance must be a finite number');
+      });
+
+      it('throws on Infinity contributionAmount', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(
+            10000,
+            Infinity,
+            25,
+            65,
+            validConfig
+          )
+        ).toThrow('contributionAmount must be a finite number');
+      });
+
+      it('throws on NaN startAge', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(
+            10000,
+            500,
+            NaN,
+            65,
+            validConfig
+          )
+        ).toThrow('startAge must be a finite number');
+      });
+
+      it('throws on Infinity endAge', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(
+            10000,
+            500,
+            25,
+            Infinity,
+            validConfig
+          )
+        ).toThrow('endAge must be a finite number');
+      });
+    });
+
+    describe('Allocation-based config invariants', () => {
+      it('throws when startEquityWeight > 1', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'allocation-based',
+            startEquityWeight: 1.5,
+            endEquityWeight: 0.3,
+            equityReturn: 0.1,
+            bondReturn: 0.04,
+          })
+        ).toThrow('config.startEquityWeight must be between');
+      });
+
+      it('throws when endEquityWeight < 0', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'allocation-based',
+            startEquityWeight: 0.9,
+            endEquityWeight: -0.1,
+            equityReturn: 0.1,
+            bondReturn: 0.04,
+          })
+        ).toThrow('config.endEquityWeight must be between');
+      });
+
+      it('throws on NaN equityReturn', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'allocation-based',
+            startEquityWeight: 0.9,
+            endEquityWeight: 0.3,
+            equityReturn: NaN,
+            bondReturn: 0.04,
+          })
+        ).toThrow('config.equityReturn must be a finite number');
+      });
+    });
+
+    describe('Custom-waypoints config invariants', () => {
+      it('throws when waypoint value > 1 with valueType equityWeight', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'custom-waypoints',
+            valueType: 'equityWeight',
+            waypoints: [
+              { age: 30, value: 0.8 },
+              { age: 50, value: 1.2 },
+            ],
+            equityReturn: 0.1,
+            bondReturn: 0.04,
+          })
+        ).toThrow('waypoint.value must be between');
+      });
+
+      it('throws on NaN waypoint value', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'custom-waypoints',
+            valueType: 'return',
+            waypoints: [{ age: 30, value: NaN }],
+          })
+        ).toThrow('waypoint.value must be a finite number');
+      });
+
+      it('throws on non-positive waypoint age', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'custom-waypoints',
+            valueType: 'return',
+            waypoints: [{ age: 0, value: 0.08 }],
+          })
+        ).toThrow('waypoint.age must be positive');
+      });
+    });
+
+    describe('Fixed-return and stepped-return config invariants', () => {
+      it('throws on Infinity startReturn', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'fixed-return',
+            startReturn: Infinity,
+            endReturn: 0.05,
+          })
+        ).toThrow('config.startReturn must be a finite number');
+      });
+
+      it('throws when stepped-return declineStartAge > terminalAge', () => {
+        expect(() =>
+          calculator.getCompoundInterestWithGlidepath(10000, 500, 25, 65, {
+            mode: 'stepped-return',
+            baseReturn: 0.1,
+            terminalReturn: 0.055,
+            declineRate: 0.001,
+            declineStartAge: 70,
+            terminalAge: 65,
+          })
+        ).toThrow('declineStartAge must be <= config.terminalAge');
+      });
+    });
+
+    describe('Regression guards', () => {
+      it('effectiveAnnualReturn is finite when initialBalance is 0 (bc3f3b7)', () => {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          0,
+          500,
+          25,
+          35,
+          validConfig
+        );
+        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
+        expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
+        expect(result.finalBalance).toBeGreaterThan(0);
+      });
+
+      it('effectiveAnnualReturn is 0 when both initialBalance and contributions are 0', () => {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          0,
+          0,
+          25,
+          35,
+          validConfig
+        );
+        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
+        expect(result.effectiveAnnualReturn).toBe(0);
+        expect(result.averageAnnualInterestRate).toBe(0);
+      });
+    });
+
+    describe('Default reconciliation for custom-waypoints valueType=equityWeight', () => {
+      it('uses GLIDEPATH_DEFAULTS.ALLOCATION_BASED returns (0.12 / 0.04) when not specified', () => {
+        // Single waypoint at 100% equity → blended return == equityReturn default == 0.12.
+        // Pre-fix this would have been 0.10 (hardcoded), now reconciled with allocation-based defaults.
+        const fullEquity: CustomWaypointsGlidepathConfig = {
+          mode: 'custom-waypoints',
+          valueType: 'equityWeight',
+          waypoints: [{ age: 30, value: 1.0 }],
+        };
+        const fullBond: CustomWaypointsGlidepathConfig = {
+          mode: 'custom-waypoints',
+          valueType: 'equityWeight',
+          waypoints: [{ age: 30, value: 0.0 }],
+        };
+
+        const eqResult = calculator.getCompoundInterestWithGlidepath(
+          0,
+          1000,
+          30,
+          31,
+          fullEquity
+        );
+        const bondResult = calculator.getCompoundInterestWithGlidepath(
+          0,
+          1000,
+          30,
+          31,
+          fullBond
+        );
+
+        // All months should be using ~0.12 annual when 100% equity, ~0.04 when 0% equity.
+        expect(eqResult.monthlyTimeline[0].currentAnnualReturn).toBeCloseTo(
+          0.12,
+          10
+        );
+        expect(bondResult.monthlyTimeline[0].currentAnnualReturn).toBeCloseTo(
+          0.04,
+          10
+        );
+      });
     });
   });
 });
