@@ -220,7 +220,7 @@ describe('RetirementCalculator', (): void => {
       'should correctly calculate compound interest with additional contributions with compound and ' +
         'contribution frequencies not matching',
       (): void => {
-        const contributionFrequency: number = 52; // Monthly
+        const contributionFrequency: number = 52; // Weekly
         const compoundingFrequency: number = 12; // Monthly
 
         const result: CompoundingInterestObjectType =
@@ -233,11 +233,11 @@ describe('RetirementCalculator', (): void => {
             compoundingFrequency
           );
 
-        expect(result.balance).toBe(17183.796274401622);
+        expect(result.balance).toBe(84017.8567060879);
         expect(result.compoundingFrequency).toBe(12);
         expect(result.contributionFrequency).toBe(52);
-        expect(result.totalContributions).toBe(553.8461538461539);
-        expect(result.totalInterestEarned).toBe(6629.950120555457);
+        expect(result.totalContributions).toBe(52000);
+        expect(result.totalInterestEarned).toBe(22017.85670608791);
         expect(result.years).toBe(10);
         expect(result.compoundingPeriodDetails.length).toBe(120);
       }
@@ -248,7 +248,7 @@ describe('RetirementCalculator', (): void => {
         'higher than contribution frequency',
       (): void => {
         const contributionFrequency: number = 12; // Monthly
-        const compoundingFrequency: number = 52; // Monthly
+        const compoundingFrequency: number = 52; // Weekly
 
         const result: CompoundingInterestObjectType =
           calculator.getCompoundInterestWithAdditionalContributions(
@@ -260,11 +260,11 @@ describe('RetirementCalculator', (): void => {
             compoundingFrequency
           );
 
-        expect(result.balance).toBe(33331.600864554675);
+        expect(result.balance).toBe(32028.08741697812);
         expect(result.compoundingFrequency).toBe(52);
         expect(result.contributionFrequency).toBe(12);
-        expect(result.totalContributions).toBe(13000);
-        expect(result.totalInterestEarned).toBe(10331.600864554699);
+        expect(result.totalContributions).toBe(12000);
+        expect(result.totalInterestEarned).toBe(10028.087416978125);
         expect(result.years).toBe(10);
         expect(result.compoundingPeriodDetails.length).toBe(520);
       }
@@ -297,7 +297,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 10605,
             balanceFromContributions: 100,
-            balanceFromInterest: 10505,
+            balanceFromInterest: 505,
             contributionTotal: 100,
             interestEarnedThisPeriod: 505,
             interestTotal: 505,
@@ -306,7 +306,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 11240.25,
             balanceFromContributions: 200,
-            balanceFromInterest: 11040.25,
+            balanceFromInterest: 1040.25,
             contributionTotal: 200,
             interestEarnedThisPeriod: 535.25,
             interestTotal: 1040.25,
@@ -315,7 +315,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 11907.2625,
             balanceFromContributions: 300,
-            balanceFromInterest: 11607.2625,
+            balanceFromInterest: 1607.2625,
             contributionTotal: 300,
             interestEarnedThisPeriod: 567.0125,
             interestTotal: 1607.2625,
@@ -324,7 +324,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 12607.625625,
             balanceFromContributions: 400,
-            balanceFromInterest: 12207.625625,
+            balanceFromInterest: 2207.625625,
             contributionTotal: 400,
             interestEarnedThisPeriod: 600.3631250000001,
             interestTotal: 2207.625625,
@@ -333,7 +333,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 13343.00690625,
             balanceFromContributions: 500,
-            balanceFromInterest: 12843.00690625,
+            balanceFromInterest: 2843.00690625,
             contributionTotal: 500,
             interestEarnedThisPeriod: 635.38128125,
             interestTotal: 2843.00690625,
@@ -342,7 +342,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 14115.157251562501,
             balanceFromContributions: 600,
-            balanceFromInterest: 13515.157251562501,
+            balanceFromInterest: 3515.1572515625003,
             contributionTotal: 600,
             interestEarnedThisPeriod: 672.1503453125001,
             interestTotal: 3515.1572515625003,
@@ -351,7 +351,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 14925.915114140626,
             balanceFromContributions: 700,
-            balanceFromInterest: 14225.915114140626,
+            balanceFromInterest: 4225.9151141406255,
             contributionTotal: 700,
             interestEarnedThisPeriod: 710.7578625781251,
             interestTotal: 4225.9151141406255,
@@ -360,7 +360,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 15777.210869847657,
             balanceFromContributions: 800,
-            balanceFromInterest: 14977.210869847657,
+            balanceFromInterest: 4977.210869847657,
             contributionTotal: 800,
             interestEarnedThisPeriod: 751.2957557070313,
             interestTotal: 4977.210869847657,
@@ -369,7 +369,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 16671.07141334004,
             balanceFromContributions: 900,
-            balanceFromInterest: 15771.07141334004,
+            balanceFromInterest: 5771.07141334004,
             contributionTotal: 900,
             interestEarnedThisPeriod: 793.8605434923829,
             interestTotal: 5771.07141334004,
@@ -378,7 +378,7 @@ describe('RetirementCalculator', (): void => {
           {
             balance: 17609.62498400704,
             balanceFromContributions: 1000,
-            balanceFromInterest: 16609.62498400704,
+            balanceFromInterest: 6609.624984007041,
             contributionTotal: 1000,
             interestEarnedThisPeriod: 838.5535706670021,
             interestTotal: 6609.624984007041,
@@ -394,7 +394,6 @@ describe('RetirementCalculator', (): void => {
       const result = calculator.aggregateDataByYear({
         balance: 17609.62498400704,
         compoundingFrequency: 1,
-        effectiveAnnualReturn: 0,
         averageAnnualInterestRate: 0,
         compoundingPeriodDetails: [
           {
@@ -566,7 +565,6 @@ describe('RetirementCalculator', (): void => {
         years: 2,
         contributionFrequency: 12,
         compoundingFrequency: 12,
-        effectiveAnnualReturn: 0,
         averageAnnualInterestRate: 0,
         compoundingPeriodDetails: [
           {
@@ -932,7 +930,7 @@ describe('RetirementCalculator', (): void => {
         ).toThrow('interestRate must be a finite number');
       });
 
-      it('returns finite effectiveAnnualReturn when initialBalance is 0 (bc3f3b7 regression guard)', (): void => {
+      it('returns finite metrics when initialBalance is 0 (bc3f3b7 regression guard)', (): void => {
         const result: CompoundingInterestObjectType =
           calculator.getCompoundInterestWithAdditionalContributions(
             0,
@@ -942,7 +940,6 @@ describe('RetirementCalculator', (): void => {
             12,
             12
           );
-        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
         expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
         expect(Number.isFinite(result.balance)).toBe(true);
       });
@@ -957,10 +954,7 @@ describe('RetirementCalculator', (): void => {
             12,
             12
           );
-        // effectiveAnnualReturn is an account-growth metric — zero balance,
-        // zero contributions, so no account growth.
-        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
-        expect(result.effectiveAnnualReturn).toBe(0);
+        expect(result.balance).toBe(0);
         // averageAnnualInterestRate is the time-weighted return of the
         // strategy itself — independent of participation. 7% APR compounded
         // monthly is ~7.23% effective annual.
@@ -1045,6 +1039,378 @@ describe('RetirementCalculator', (): void => {
       // Sanity: definitely not the old broken ~5.6%
       expect(result.averageAnnualInterestRate).toBeGreaterThan(0.08);
       expect(result.averageAnnualInterestRate).toBeLessThan(0.085);
+    });
+  });
+
+  describe('Contribution schedule across frequency combinations', (): void => {
+    // [contributionFrequency, compoundingFrequency]
+    const combinations: [number, number][] = [
+      [1, 1],
+      [1, 12],
+      [4, 12],
+      [12, 12],
+      [24, 12],
+      [26, 12],
+      [52, 12],
+      [12, 1],
+      [12, 4],
+      [12, 52],
+      [12, 365],
+      [52, 365],
+    ];
+
+    it.each(combinations)(
+      'deposits contributionFrequency contributions a year (contribute %i/yr, compound %i/yr)',
+      (contributionFrequency: number, compoundingFrequency: number): void => {
+        const result: CompoundingInterestObjectType =
+          calculator.getCompoundInterestWithAdditionalContributions(
+            0,
+            100,
+            10,
+            0,
+            contributionFrequency,
+            compoundingFrequency
+          );
+        expect(result.totalContributions).toBe(
+          100 * contributionFrequency * 10
+        );
+        expect(result.balance).toBe(result.totalContributions);
+      }
+    );
+
+    it('places a yearly contribution in the last compounding period of each year', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          100,
+          2,
+          0,
+          1,
+          12
+        );
+      const contributionTotals: number[] = result.compoundingPeriodDetails.map(
+        (detail) => detail.contributionTotal
+      );
+      expect(contributionTotals[10]).toBe(0);
+      expect(contributionTotals[11]).toBe(100);
+      expect(contributionTotals[22]).toBe(100);
+      expect(contributionTotals[23]).toBe(200);
+    });
+
+    it('spreads weekly contributions 4 or 5 to a month', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          1,
+          1,
+          0,
+          52,
+          12
+        );
+      const perMonth: number[] = result.compoundingPeriodDetails.map(
+        (detail, index, all) =>
+          detail.contributionTotal -
+          (index === 0 ? 0 : all[index - 1].contributionTotal)
+      );
+      expect(perMonth.every((count) => count === 4 || count === 5)).toBe(true);
+      expect(perMonth.reduce((sum, count) => sum + count, 0)).toBe(52);
+    });
+
+    it('matches the closed-form future value for monthly contributions with yearly compounding', (): void => {
+      // 12 contributions of 100 land at the start of each year, then earn 5%.
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          100,
+          3,
+          0.05,
+          12,
+          1
+        );
+      const expected: number = 1200 * (1.05 + 1.05 ** 2 + 1.05 ** 3);
+      expect(result.balance).toBeCloseTo(expected, 8);
+    });
+
+    it('rejects fractional frequencies', (): void => {
+      expect((): void => {
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          100,
+          1,
+          0.05,
+          2.5,
+          12
+        );
+      }).toThrow('contributionFrequency must be a whole number');
+      expect((): void => {
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          100,
+          1,
+          0.05,
+          12,
+          365.25
+        );
+      }).toThrow('compoundingFrequency must be a whole number');
+    });
+
+    it('rejects an interest rate of -100% or worse per period', (): void => {
+      expect((): void => {
+        calculator.getCompoundInterestWithAdditionalContributions(
+          1000,
+          100,
+          1,
+          -1,
+          12,
+          1
+        );
+      }).toThrow('interestRate must be greater than -100%');
+    });
+  });
+
+  describe('Balance breakdown', (): void => {
+    it('keeps the initial balance out of balanceFromInterest', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          10000,
+          100,
+          5,
+          0.06,
+          12,
+          12
+        );
+      for (const detail of result.compoundingPeriodDetails) {
+        expect(detail.balanceFromInterest).toBe(detail.interestTotal);
+        expect(detail.balanceFromContributions).toBe(detail.contributionTotal);
+        expect(
+          10000 + detail.balanceFromContributions + detail.balanceFromInterest
+        ).toBeCloseTo(detail.balance, 6);
+      }
+      expect(
+        result.compoundingPeriodDetails[0].balanceFromInterest
+      ).toBeCloseTo((10000 + 100) * (0.06 / 12), 10);
+    });
+  });
+
+  describe('getContributionNeededForDesiredBalance round trip', (): void => {
+    const combinations: [number, number][] = [
+      [12, 12],
+      [1, 1],
+      [1, 12],
+      [4, 12],
+      [26, 12],
+      [52, 12],
+      [12, 1],
+      [12, 365],
+    ];
+
+    it.each(combinations)(
+      'reaches the target when simulated (contribute %i/yr, compound %i/yr)',
+      (contributionFrequency: number, compoundingFrequency: number): void => {
+        const needed: DetermineContributionType =
+          calculator.getContributionNeededForDesiredBalance(
+            10000,
+            1000000,
+            30,
+            0.07,
+            contributionFrequency,
+            compoundingFrequency,
+            0.03
+          );
+        const project = (contribution: number): number =>
+          calculator.getCompoundInterestWithAdditionalContributions(
+            10000,
+            contribution,
+            30,
+            0.07,
+            contributionFrequency,
+            compoundingFrequency
+          ).balance;
+
+        expect(project(needed.contributionNeededPerPeriod)).toBeCloseTo(
+          1000000,
+          4
+        );
+        expect(
+          project(needed.contributionNeededPerPeriodWithInflation)
+        ).toBeCloseTo(needed.desiredBalanceWithInflation, 4);
+      }
+    );
+
+    it('matches the annuity-due formula when frequencies are equal', (): void => {
+      const needed: DetermineContributionType =
+        calculator.getContributionNeededForDesiredBalance(
+          0,
+          100000,
+          10,
+          0.06,
+          12,
+          12,
+          0
+        );
+      const rate: number = 0.06 / 12;
+      const annuityDueFactor: number =
+        ((Math.pow(1 + rate, 120) - 1) / rate) * (1 + rate);
+      expect(needed.contributionNeededPerPeriod).toBeCloseTo(
+        100000 / annuityDueFactor,
+        8
+      );
+    });
+
+    it('returns 0 when the starting balance already grows past the target', (): void => {
+      const needed: DetermineContributionType =
+        calculator.getContributionNeededForDesiredBalance(
+          500000,
+          600000,
+          10,
+          0.07,
+          12,
+          12,
+          0
+        );
+      expect(needed.contributionNeededPerPeriod).toBe(0);
+    });
+
+    it('throws when no contribution falls due before the end', (): void => {
+      expect((): void => {
+        calculator.getContributionNeededForDesiredBalance(
+          0,
+          1000,
+          0.5,
+          0.05,
+          1,
+          12,
+          0
+        );
+      }).toThrow('No contribution is credited within 0.5 year(s)');
+    });
+
+    it('handles a horizon shorter than one compounding period', (): void => {
+      // Six monthly contributions land in half of a yearly period.
+      const needed: DetermineContributionType =
+        calculator.getContributionNeededForDesiredBalance(
+          0,
+          1000,
+          0.5,
+          0.05,
+          12,
+          1,
+          0
+        );
+      const simulated: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          needed.contributionNeededPerPeriod,
+          0.5,
+          0.05,
+          12,
+          1
+        );
+      expect(simulated.totalContributions).toBeCloseTo(
+        needed.contributionNeededPerPeriod * 6,
+        8
+      );
+      expect(simulated.balance).toBeCloseTo(1000, 8);
+    });
+  });
+
+  describe('getYearlyWithdrawalAmountByBalance validation', (): void => {
+    it('throws on a negative withdrawal rate', (): void => {
+      expect((): void => {
+        calculator.getYearlyWithdrawalAmountByBalance(1000000, -0.04);
+      }).toThrow('yearlyWithdrawalRate must be non-negative');
+    });
+  });
+
+  describe('Fractional years', (): void => {
+    it('runs the leftover fraction as a partial period with simple interest', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          10000,
+          0,
+          10.5,
+          0.06,
+          1,
+          1
+        );
+      expect(result.compoundingPeriodDetails).toHaveLength(11);
+      expect(result.balance).toBeCloseTo(10000 * 1.06 ** 10 * 1.03, 8);
+    });
+
+    it('counts the contributions that fall due in the partial period', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          0,
+          100,
+          2.5,
+          0,
+          12,
+          1
+        );
+      expect(result.totalContributions).toBe(3000);
+    });
+
+    it('matches whole-period results when the years land on a boundary', (): void => {
+      // 0.1 * 30 is 3.0000000000000004 in floating point.
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          1000,
+          0,
+          0.1,
+          0.3,
+          30,
+          30
+        );
+      expect(result.compoundingPeriodDetails).toHaveLength(3);
+      expect(result.balance).toBeCloseTo(1000 * 1.01 ** 3, 8);
+    });
+
+    it('aggregates a final partial year into its own row', (): void => {
+      const result: CompoundingInterestObjectType =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          1000,
+          100,
+          2.5,
+          0.06,
+          12,
+          12
+        );
+      const yearly = calculator.aggregateDataByYear(result);
+      expect(yearly).toHaveLength(3);
+      expect(yearly[1].endOfYearBalance).toBe(
+        result.compoundingPeriodDetails[23].balance
+      );
+      expect(yearly[2]).toStrictEqual({
+        year: 3,
+        cumulativeContributions: result.totalContributions,
+        cumulativeInterest: result.totalInterestEarned,
+        endOfYearBalance: result.balance,
+      });
+    });
+  });
+
+  describe('Inflation rate validation', (): void => {
+    it('rejects an inflation rate of -100% or below', (): void => {
+      expect((): void => {
+        calculator.adjustDesiredBalanceDueToInflation(1000, 10, -1);
+      }).toThrow('inflationRate must be greater than -1');
+      expect((): void => {
+        calculator.getContributionNeededForDesiredBalance(
+          0,
+          1000,
+          10,
+          0.05,
+          12,
+          12,
+          -1
+        );
+      }).toThrow('inflationRate must be greater than -1');
+    });
+
+    it('still accepts deflation', (): void => {
+      expect(
+        calculator.adjustDesiredBalanceDueToInflation(1000, 1, -0.02)
+      ).toBeCloseTo(980, 10);
     });
   });
 });

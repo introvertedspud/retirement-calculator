@@ -945,7 +945,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
         endAge: expect.any(Number),
         glidepathMode: expect.any(String),
         monthlyTimeline: expect.any(Array),
-        effectiveAnnualReturn: expect.any(Number),
+        moneyWeightedAnnualReturn: expect.any(Number),
         averageMonthlyReturn: expect.any(Number),
       });
     });
@@ -1017,17 +1017,17 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
       );
     });
 
-    test('should calculate effective annual return correctly', () => {
+    test('should calculate money-weighted return correctly with no contributions', () => {
       const result = calculator.getCompoundInterestWithGlidepath(
         10000,
         0,
         25,
         26,
-        config // No contributions to test return calculation
+        config // No contributions: the only cash flow is the initial balance
       );
 
       const expectedReturn = Math.pow(result.finalBalance / 10000, 1) - 1;
-      expect(result.effectiveAnnualReturn).toBeCloseTo(expectedReturn, 5);
+      expect(result.moneyWeightedAnnualReturn).toBeCloseTo(expectedReturn, 5);
     });
 
     test('should calculate average monthly return correctly', () => {
@@ -1492,7 +1492,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
     });
 
     describe('Regression guards', () => {
-      it('effectiveAnnualReturn is finite when initialBalance is 0 (bc3f3b7)', () => {
+      it('return metrics are finite when initialBalance is 0 (bc3f3b7)', () => {
         const result = calculator.getCompoundInterestWithGlidepath(
           0,
           500,
@@ -1500,7 +1500,7 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           35,
           validConfig
         );
-        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
+        expect(Number.isFinite(result.moneyWeightedAnnualReturn)).toBe(true);
         expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
         expect(result.finalBalance).toBeGreaterThan(0);
       });
@@ -1513,9 +1513,8 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
           35,
           validConfig
         );
-        // effectiveAnnualReturn is an account-growth metric — nothing to grow.
-        expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
-        expect(result.effectiveAnnualReturn).toBe(0);
+        // moneyWeightedAnnualReturn needs invested money — none here.
+        expect(result.moneyWeightedAnnualReturn).toBe(0);
         // averageAnnualInterestRate is the time-weighted return of the
         // glidepath itself — between the start and end returns regardless
         // of participation.
@@ -1658,6 +1657,418 @@ describe('RetirementCalculator - Dynamic Glidepath Functionality', () => {
       const expectedTwr =
         Math.pow(product, 12 / result.monthlyTimeline.length) - 1;
       expect(result.averageAnnualInterestRate).toBeCloseTo(expectedTwr, 12);
+    });
+  });
+
+  describe('Contribution and compounding frequencies', () => {
+    const noReturn: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0,
+      endReturn: 0,
+    };
+    const flatEight: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0.08,
+      endReturn: 0.08,
+    };
+
+    // [contributionFrequency, compoundingFrequency]
+    const combinations: [number, number][] = [
+      [12, 12],
+      [1, 12],
+      [4, 12],
+      [26, 12],
+      [52, 12],
+      [1, 1],
+      [12, 1],
+      [4, 4],
+      [12, 365],
+    ];
+
+    it.each(combinations)(
+      'deposits contributionFrequency contributions a year (contribute %i/yr, compound %i/yr)',
+      (contributionFrequency: number, compoundingFrequency: number) => {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          0,
+          100,
+          30,
+          35,
+          noReturn,
+          contributionFrequency,
+          compoundingFrequency
+        );
+        expect(result.totalContributions).toBe(100 * contributionFrequency * 5);
+        expect(result.finalBalance).toBe(result.totalContributions);
+      }
+    );
+
+    it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 365])(
+      'grows a lump sum at the effective annual rate when compounding %i times a year',
+      (compoundingFrequency: number) => {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          10000,
+          0,
+          30,
+          40,
+          flatEight,
+          12,
+          compoundingFrequency
+        );
+        expect(result.finalBalance).toBeCloseTo(10000 * 1.08 ** 10, 2);
+      }
+    );
+
+    it('treats compounding more often than monthly the same as monthly', () => {
+      const monthly = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        500,
+        30,
+        40,
+        flatEight,
+        12,
+        12
+      );
+      const daily = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        500,
+        30,
+        40,
+        flatEight,
+        12,
+        365
+      );
+      expect(daily.finalBalance).toBe(monthly.finalBalance);
+    });
+
+    it('credits accrued interest only when a compounding period ends', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        30,
+        32,
+        flatEight,
+        12,
+        1
+      );
+      const timeline = result.monthlyTimeline;
+      // Within a year interest accrues on the credited balance, so every
+      // month earns the same amount; after crediting, it steps up.
+      expect(timeline[5].monthlyInterestEarned).toBeCloseTo(800 / 12, 8);
+      expect(timeline[11].monthlyInterestEarned).toBeCloseTo(800 / 12, 8);
+      expect(timeline[11].currentBalance).toBeCloseTo(10800, 8);
+      expect(timeline[12].monthlyInterestEarned).toBeCloseTo(864 / 12, 8);
+    });
+
+    it('keeps the timeline balance equal to deposits plus interest', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        250,
+        30,
+        31.5,
+        flatEight,
+        26,
+        4
+      );
+      for (const entry of result.monthlyTimeline) {
+        expect(entry.currentBalance).toBeCloseTo(
+          10000 + entry.cumulativeContributions + entry.cumulativeInterest,
+          6
+        );
+      }
+      expect(result.finalBalance).toBeCloseTo(
+        10000 + result.totalContributions + result.totalInterestEarned,
+        2
+      );
+    });
+
+    it('rejects fractional frequencies', () => {
+      expect(() => {
+        calculator.getCompoundInterestWithGlidepath(
+          0,
+          100,
+          30,
+          31,
+          noReturn,
+          2.5,
+          12
+        );
+      }).toThrow('contributionFrequency must be a whole number');
+    });
+  });
+
+  describe('Money-weighted return — moneyWeightedAnnualReturn', () => {
+    const declining: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0.1,
+      endReturn: 0.05,
+    };
+
+    it('equals the time-weighted return when the rate never changes', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        500,
+        30,
+        60,
+        { mode: 'fixed-return', startReturn: 0.07, endReturn: 0.07 }
+      );
+      expect(result.moneyWeightedAnnualReturn).toBeCloseTo(0.07, 10);
+      expect(result.moneyWeightedAnnualReturn).toBeCloseTo(
+        result.averageAnnualInterestRate,
+        10
+      );
+    });
+
+    it('equals the time-weighted return when there are no contributions', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        30,
+        60,
+        declining
+      );
+      expect(result.moneyWeightedAnnualReturn).toBeCloseTo(
+        result.averageAnnualInterestRate,
+        10
+      );
+    });
+
+    it('falls below the time-weighted return on a declining glidepath with contributions', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        500,
+        30,
+        60,
+        declining
+      );
+      expect(result.moneyWeightedAnnualReturn).toBeLessThan(
+        result.averageAnnualInterestRate
+      );
+      expect(result.moneyWeightedAnnualReturn).toBeGreaterThan(0.05);
+    });
+
+    it.each(['start', 'end'] as const)(
+      'reproduces the final balance when every deposit grows at it (%s timing)',
+      (timing) => {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          10000,
+          500,
+          30,
+          60,
+          declining,
+          12,
+          12,
+          timing
+        );
+        const monthlyRate =
+          Math.pow(1 + result.moneyWeightedAnnualReturn, 1 / 12) - 1;
+        const offset = timing === 'start' ? 1 : 0;
+        let futureValue = 10000 * Math.pow(1 + monthlyRate, result.totalMonths);
+        for (let month = 1; month <= result.totalMonths; month++) {
+          futureValue +=
+            500 *
+            Math.pow(1 + monthlyRate, result.totalMonths - month + offset);
+        }
+        expect(futureValue).toBeCloseTo(result.finalBalance, 2);
+      }
+    );
+
+    it('does not depend on the size of the starting balance at a constant rate', () => {
+      const config: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.08,
+        endReturn: 0.08,
+      };
+      for (const initialBalance of [0, 1, 100, 10000, 100000]) {
+        const result = calculator.getCompoundInterestWithGlidepath(
+          initialBalance,
+          500,
+          30,
+          60,
+          config
+        );
+        expect(result.moneyWeightedAnnualReturn).toBeCloseTo(0.08, 10);
+      }
+    });
+  });
+
+  describe('Return metrics agree when there are no contributions', () => {
+    const declining: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0.1,
+      endReturn: 0.05,
+    };
+    const flatEight: FixedReturnGlidepathConfig = {
+      mode: 'fixed-return',
+      startReturn: 0.08,
+      endReturn: 0.08,
+    };
+
+    // [compoundingFrequency, endAge] from age 30
+    const cases: [number, number][] = [
+      [1, 30.5],
+      [1, 32.25],
+      [2, 31.75],
+      [4, 33],
+      [5, 34.5],
+      [7, 40],
+      [12, 31.5],
+    ];
+
+    it.each(cases)(
+      'time-weighted and money-weighted returns match the realized return (compound %i/yr, to age %d)',
+      (compoundingFrequency: number, endAge: number) => {
+        for (const config of [flatEight, declining]) {
+          const result = calculator.getCompoundInterestWithGlidepath(
+            10000,
+            0,
+            30,
+            endAge,
+            config,
+            12,
+            compoundingFrequency
+          );
+          const lastEntry =
+            result.monthlyTimeline[result.monthlyTimeline.length - 1];
+          const realized =
+            Math.pow(lastEntry.currentBalance / 10000, 1 / (endAge - 30)) - 1;
+          expect(result.averageAnnualInterestRate).toBeCloseTo(realized, 10);
+          expect(result.moneyWeightedAnnualReturn).toBeCloseTo(realized, 10);
+        }
+      }
+    );
+
+    it('reports the simple-accrual return for a partial compounding period', () => {
+      // Half a year of an annually credited 8%: 4% accrued, 8.16% annualized.
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        30,
+        30.5,
+        flatEight,
+        12,
+        1
+      );
+      expect(result.finalBalance).toBeCloseTo(10400, 2);
+      expect(result.averageAnnualInterestRate).toBeCloseTo(0.0816, 10);
+    });
+
+    it('keeps the time-weighted return independent of contributions when compounding yearly', () => {
+      const withoutContributions = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        30,
+        40,
+        declining,
+        12,
+        1
+      );
+      const withContributions = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        2000,
+        30,
+        40,
+        declining,
+        12,
+        1
+      );
+      expect(withContributions.averageAnnualInterestRate).toBe(
+        withoutContributions.averageAnnualInterestRate
+      );
+    });
+
+    it('reports exactly 0 for the money-weighted return at a 0% return', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        500,
+        30,
+        40,
+        { mode: 'fixed-return', startReturn: 0, endReturn: 0 }
+      );
+      expect(result.moneyWeightedAnnualReturn).toBe(0);
+    });
+
+    it('finds money-weighted returns above 100% a month', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        10000,
+        0,
+        30,
+        31,
+        { mode: 'fixed-return', startReturn: 5000, endReturn: 5000 }
+      );
+      expect(result.moneyWeightedAnnualReturn / 5000).toBeCloseTo(1, 8);
+    });
+
+    it('weights a sloped glidepath evenly when compounding periods are uneven', () => {
+      const declining: FixedReturnGlidepathConfig = {
+        mode: 'fixed-return',
+        startReturn: 0.1,
+        endReturn: 0.05,
+      };
+      const returnAt = (compoundingFrequency: number): number =>
+        calculator.getCompoundInterestWithGlidepath(
+          10000,
+          0,
+          30,
+          40,
+          declining,
+          12,
+          compoundingFrequency
+        ).averageAnnualInterestRate;
+      const monthly = returnAt(12);
+      for (const compoundingFrequency of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+        expect(returnAt(compoundingFrequency)).toBeCloseTo(monthly, 4);
+      }
+    });
+
+    it('returns 0 for the money-weighted return when the only deposit lands at the very end', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        0,
+        100,
+        30,
+        31,
+        flatEight,
+        1,
+        12,
+        'end'
+      );
+      expect(result.finalBalance).toBe(100);
+      expect(result.moneyWeightedAnnualReturn).toBe(0);
+    });
+  });
+
+  describe('Return rate validation', () => {
+    it('rejects a return of -100% or worse instead of producing NaN', () => {
+      expect(() => {
+        calculator.getCompoundInterestWithGlidepath(1000, 100, 30, 31, {
+          mode: 'fixed-return',
+          startReturn: -1.5,
+          endReturn: 0.05,
+        });
+      }).toThrow('config.startReturn must be at least -0.99');
+    });
+
+    it('rejects an out-of-range return waypoint', () => {
+      expect(() => {
+        calculator.getCompoundInterestWithGlidepath(1000, 100, 30, 31, {
+          mode: 'custom-waypoints',
+          valueType: 'return',
+          waypoints: [
+            { age: 30, value: 0.08 },
+            { age: 31, value: -1 },
+          ],
+        });
+      }).toThrow('waypoint.value must be at least -0.99');
+    });
+
+    it('still accepts moderate negative returns', () => {
+      const result = calculator.getCompoundInterestWithGlidepath(
+        1000,
+        0,
+        30,
+        31,
+        { mode: 'fixed-return', startReturn: -0.2, endReturn: -0.2 }
+      );
+      expect(result.finalBalance).toBeCloseTo(800, 2);
     });
   });
 });

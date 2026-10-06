@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`averageAnnualInterestRate` is now the time-weighted annual return (TWR)** of the investment strategy itself — independent of contribution timing. The prior formula (`totalInterest / years / (initialBalance + totalContributions)`) was not a real return metric and was not validly comparable to market benchmarks. Code that used this field as if it were the strategy's actual return will now get the correct number.
 
+- **`effectiveAnnualReturn` is removed.** It was `(finalBalance / initialBalance)^(1/years) - 1`, which is dominated by the size of the starting balance rather than by returns: the same $500/month plan at 8% reported 4.87% from a $0 start, 56.98% from $1 and 16% from $10,000. The glidepath result now has **`moneyWeightedAnnualReturn`** (internal rate of return) instead. The constant-rate result reports only `averageAnnualInterestRate`, because the two are identical when the rate never changes.
+- **Contribution scheduling is rewritten, and results change whenever `contributionFrequency` and `compoundingFrequency` differ.** See "Fixed" below. In the constant-rate method, results for equal frequencies and for yearly or quarterly contributions with monthly compounding are unchanged. In the glidepath, results are unchanged only when `compoundingFrequency` is 12 (the default) and `contributionFrequency` is 12 or lower; any other `compoundingFrequency`, including equal pairs such as 1/1 or 4/4, now gives different numbers.
+- **`balanceFromInterest` no longer includes the initial balance.** It now equals `interestTotal`, so `balance = initialBalance + balanceFromContributions + balanceFromInterest`.
+- **Stricter validation.** These now throw:
+  - Fractional `contributionFrequency` or `compoundingFrequency` (e.g. `365.25`).
+  - Glidepath returns below -99% (they previously produced `NaN`).
+  - A nominal interest rate of -100% or worse per compounding period.
+  - A negative `yearlyWithdrawalRate` in `getYearlyWithdrawalAmountByBalance`.
+  - An `inflationRate` of -100% or below (it previously produced `Infinity`).
+  - `getContributionNeededForDesiredBalance` when no contribution falls due before the end (for example yearly contributions over half a year) and the starting balance alone falls short. It previously returned a number.
+
 ### Why
 
 The previous formula divided total interest earned by the nominal sum of dollars invested, treating each dollar as if it had been deposited at time zero. This systematically understated the strategy's actual return — sometimes dramatically. The v1.2.0 CHANGELOG and README invited users to compare the value against the S&P 500. The formula did not support that comparison.
@@ -29,7 +40,7 @@ The new metric is the annualized geometric mean of the period-by-period returns.
 
 The new number is what most users actually want: "what return did my investments earn over this period?". It is the metric that compares meaningfully to the S&P 500 over the same window.
 
-**`effectiveAnnualReturn` is unchanged.** It remains the account-growth metric `(finalBalance / initialBalance)^(1/years) - 1`, answering "how fast did my account grow?" — which includes the effect of contributions.
+**`effectiveAnnualReturn` is gone.** Read `moneyWeightedAnnualReturn` on glidepath results, or `averageAnnualInterestRate` on constant-rate results (the two are the same number there). If you need total account growth including deposits, compute it from `balance` and `totalContributions`.
 
 #### What you need to do
 
@@ -41,11 +52,22 @@ If your code asserts on specific `averageAnnualInterestRate` values in tests, up
 
 ### Fixed
 
+- **Contributing more often than compounding lost almost all the money.** Weekly contributions of $100 with monthly compounding deposited $46.15 in a year instead of $5,200; monthly contributions with yearly compounding deposited nothing for the first 11 years. Every combination of whole-number frequencies now deposits exactly `contributionFrequency` contributions a year.
+- **Contribution drift with daily compounding.** Monthly contributions with daily compounding made 121 deposits in 10 years instead of 120.
+- **`getContributionNeededForDesiredBalance` missed the target when frequencies differed** (97.1% of target for yearly contributions with monthly compounding, and 13 months of contributions a year for weekly with monthly). It now solves against the simulator, so feeding the result back into `getCompoundInterestWithAdditionalContributions` reproduces the target for any frequencies. It throws if no contribution would be credited within the period.
+- **Glidepath `compoundingFrequency` corrupted the contribution schedule** for any value other than 12 (yearly/yearly deposited 12× too much; monthly/daily deposited nothing in the first year). It now controls how often accrued interest is credited to the balance; see the README.
+- **Fractional `years` were truncated to whole compounding periods** in the constant-rate method (10.5 years with yearly compounding ran 10 periods). The remainder now runs as a final partial period earning simple interest, and `aggregateDataByYear` reports it as a final row.
+- **`aggregateDataByYear` threw a `TypeError`** for a fractional compounding frequency. Such frequencies are now rejected up front.
 - README's "Three glidepath modes" claim was incorrect — there are four (`stepped-return` was missing). The README and JSDoc are now accurate.
+
+### Added
+
+- `moneyWeightedAnnualReturn` on the glidepath result.
+- README section "How rates and frequencies are interpreted", documenting that the constant-rate method takes a nominal rate (APR) and the glidepath method takes an effective annual return.
 
 ### Changed
 
-- JSDoc on `effectiveAnnualReturn` and `averageAnnualInterestRate` rewritten to describe what they actually compute and when each is the right choice.
+- JSDoc on `averageAnnualInterestRate` and `moneyWeightedAnnualReturn` describes what each computes and when each is the right choice.
 
 ---
 

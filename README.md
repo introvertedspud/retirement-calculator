@@ -65,22 +65,37 @@ Four glidepath modes available:
 
 ## Return Metrics
 
-Every calculation result includes two return metrics that answer different questions:
-
-| Metric | Question it answers | Typical use |
+| Metric | Available on | Question it answers |
 |---|---|---|
-| `averageAnnualInterestRate` | "What was the time-weighted return of the *strategy* itself?" | Compare against benchmarks (e.g. the S&P 500 over the same window) |
-| `effectiveAnnualReturn` | "At what annual rate did my *account* grow?" | Show total account growth including the effect of contributions |
+| `averageAnnualInterestRate` | both methods | "What did the *strategy* return?" Compare this against benchmarks such as the S&P 500 over the same window. |
+| `moneyWeightedAnnualReturn` | glidepath only | "What return did *my dollars* actually earn?" |
 
-`averageAnnualInterestRate` is computed as the annualized geometric mean of period-by-period returns (time-weighted return, TWR). It does not depend on how much you contributed or when — it's purely the strategy's investment performance.
+`averageAnnualInterestRate` is the time-weighted return (TWR): the annualized geometric mean of the period-by-period returns. It does not depend on how much you contributed or when.
 
-`effectiveAnnualReturn` is `(finalBalance / initialBalance) ^ (1/years) - 1`. With significant contributions it will be much higher than `averageAnnualInterestRate` — that's expected, because your account grew partly from new deposits, not just from investment returns.
+`moneyWeightedAnnualReturn` is the internal rate of return (IRR): the single annual rate that grows every deposit, from the date it was made, to the final balance. It weights each period by how much money was invested during it.
 
-**Example:** $10k initial + $1k/month + 8% annual return + 10 years:
-- `averageAnnualInterestRate` ≈ **8.30%** — the strategy's actual annual yield (8% APR compounded monthly)
-- `effectiveAnnualReturn` ≈ **35%** — the rate at which your account grew, dominated by your contributions
+The two are equal whenever the return never changes, which is why the constant-rate method reports only one. On a glidepath they differ, because most of the money is invested during the later, lower-return years.
 
-> **v3.0.0 note:** Prior versions used a different formula for `averageAnnualInterestRate` that included contribution effects and was not directly comparable to benchmarks. See [CHANGELOG.md](CHANGELOG.md#300---2026-05-19) for migration details.
+**Example:** $25k initial + $1k/month from age 25 to 65 on a 10% → 5.5% glidepath:
+- `averageAnnualInterestRate` ≈ **7.75%** — the return of the strategy itself
+- `moneyWeightedAnnualReturn` ≈ **7.38%** — what the invested dollars earned, on average
+
+> **v3.0.0 note:** `averageAnnualInterestRate` changed meaning and `effectiveAnnualReturn` was replaced by `moneyWeightedAnnualReturn`. See [CHANGELOG.md](CHANGELOG.md#300---2026-05-19) for migration details.
+
+## How rates and frequencies are interpreted
+
+The two calculation methods read the rate you pass differently:
+
+| Method | Rate is treated as | 8% means |
+|---|---|---|
+| `getCompoundInterestWithAdditionalContributions` | a nominal annual rate (APR) | `8% / compoundingFrequency` per period — 8.30% a year with monthly compounding |
+| `getCompoundInterestWithGlidepath` | an effective annual return | exactly 8% growth a year |
+
+So the same inputs give different balances: $10k + $500/month for 30 years at 8% is about $859,505 from the first method and $809,433 from the second.
+
+Contribution and compounding frequencies are whole numbers of events per year and can be mixed freely (for example weekly contributions with monthly compounding). A contribution is credited at the start of the compounding period in which it falls due.
+
+The glidepath simulation steps monthly. Its `compoundingFrequency` sets how often earned interest is credited to the balance: below 12, interest accrues monthly and is added at the end of each compounding period; above 12 it behaves exactly like 12, because returns are effective annual rates.
 
 ## Examples
 
