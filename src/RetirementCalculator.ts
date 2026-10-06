@@ -1,5 +1,4 @@
 import {
-  CONTRIBUTION_FREQUENCY,
   GLIDEPATH_DEFAULTS,
   GLIDEPATH_VALIDATION,
 } from './constants/retirementCalculatorConstants';
@@ -57,6 +56,61 @@ export default class RetirementCalculator {
   }
 
   /**
+   * Validate that a frequency is a positive whole number of events per year.
+   * @private
+   */
+  private validateFrequency(value: number, name: string): void {
+    this.validatePositiveFinite(value, name);
+    if (!Number.isInteger(value)) {
+      throw new Error(`${name} must be a whole number (got ${value})`);
+    }
+  }
+
+  /**
+   * Validate an annual return rate. A loss of 100% or more cannot be
+   * converted to a periodic compounding rate, so it is rejected.
+   * @private
+   */
+  private validateReturnRate(value: number, name: string): void {
+    const { MIN_RETURN } = GLIDEPATH_VALIDATION.RETURNS;
+    this.validateFiniteNumber(value, name);
+    if (value < MIN_RETURN) {
+      throw new Error(`${name} must be at least ${MIN_RETURN} (got ${value})`);
+    }
+  }
+
+  /**
+   * Validate a nominal interest rate against its compounding frequency.
+   * The rate per compounding period must stay above -100%.
+   * @private
+   */
+  private validateInterestRate(
+    interestRate: number,
+    compoundingFrequency: number
+  ): void {
+    this.validateFiniteNumber(interestRate, 'interestRate');
+    if (interestRate / compoundingFrequency <= -1) {
+      throw new Error(
+        `interestRate must be greater than -100% per compounding period (got ${interestRate})`
+      );
+    }
+  }
+
+  /**
+   * Validate an inflation rate. At -100% or below, deflating a balance
+   * divides by zero or a negative base.
+   * @private
+   */
+  private validateInflationRate(inflationRate: number): void {
+    this.validateFiniteNumber(inflationRate, 'inflationRate');
+    if (inflationRate <= -1) {
+      throw new Error(
+        `inflationRate must be greater than -1 (got ${inflationRate})`
+      );
+    }
+  }
+
+  /**
    * Validate that a numeric input is finite and within [MIN_WEIGHT, MAX_WEIGHT].
    * Used for equity allocation weights (typically [0, 1]).
    * @private
@@ -81,15 +135,12 @@ export default class RetirementCalculator {
 
     switch (config.mode) {
       case 'fixed-return':
-        this.validateFiniteNumber(config.startReturn, 'config.startReturn');
-        this.validateFiniteNumber(config.endReturn, 'config.endReturn');
+        this.validateReturnRate(config.startReturn, 'config.startReturn');
+        this.validateReturnRate(config.endReturn, 'config.endReturn');
         return;
       case 'stepped-return':
-        this.validateFiniteNumber(config.baseReturn, 'config.baseReturn');
-        this.validateFiniteNumber(
-          config.terminalReturn,
-          'config.terminalReturn'
-        );
+        this.validateReturnRate(config.baseReturn, 'config.baseReturn');
+        this.validateReturnRate(config.terminalReturn, 'config.terminalReturn');
         this.validateFiniteNumber(config.declineRate, 'config.declineRate');
         this.validatePositiveFinite(
           config.declineStartAge,
@@ -111,8 +162,8 @@ export default class RetirementCalculator {
           config.endEquityWeight,
           'config.endEquityWeight'
         );
-        this.validateFiniteNumber(config.equityReturn, 'config.equityReturn');
-        this.validateFiniteNumber(config.bondReturn, 'config.bondReturn');
+        this.validateReturnRate(config.equityReturn, 'config.equityReturn');
+        this.validateReturnRate(config.bondReturn, 'config.bondReturn');
         return;
       case 'custom-waypoints':
         if (
@@ -133,13 +184,15 @@ export default class RetirementCalculator {
           this.validateFiniteNumber(wp.value, 'waypoint.value');
           if (config.valueType === 'equityWeight') {
             this.validateEquityWeight(wp.value, 'waypoint.value');
+          } else {
+            this.validateReturnRate(wp.value, 'waypoint.value');
           }
         }
         if (config.equityReturn !== undefined) {
-          this.validateFiniteNumber(config.equityReturn, 'config.equityReturn');
+          this.validateReturnRate(config.equityReturn, 'config.equityReturn');
         }
         if (config.bondReturn !== undefined) {
-          this.validateFiniteNumber(config.bondReturn, 'config.bondReturn');
+          this.validateReturnRate(config.bondReturn, 'config.bondReturn');
         }
         return;
       default: {
@@ -177,7 +230,7 @@ export default class RetirementCalculator {
   ): number {
     this.validateNonNegativeFinite(desiredBalance, 'desiredBalance');
     this.validateNonNegativeFinite(years, 'years');
-    this.validateFiniteNumber(inflationRate, 'inflationRate');
+    this.validateInflationRate(inflationRate);
     return desiredBalance * (1 + inflationRate) ** years;
   }
 
@@ -220,55 +273,25 @@ export default class RetirementCalculator {
     yearlyWithdrawalRate: number
   ): number {
     this.validateNonNegativeFinite(balance, 'balance');
-    this.validateFiniteNumber(yearlyWithdrawalRate, 'yearlyWithdrawalRate');
+    this.validateNonNegativeFinite(
+      yearlyWithdrawalRate,
+      'yearlyWithdrawalRate'
+    );
     return balance * yearlyWithdrawalRate;
   }
 
   /**
-   * Calculate the interest of a balance over a given period of time.
-   * @param startingBalance
-   * @param interestRate
-   * @param periods
-   * @private
-   */
-  private getInterestOverTime(
-    startingBalance: number,
-    interestRate: number,
-    periods: number
-  ): number {
-    return startingBalance * (1 + interestRate) ** periods;
-  }
-
-  /**
-   * Calculate the total interest multiplier used for determining contributions needed to hit a goal.
-   * Uses the geometric series formula for efficiency: sum = a(r^n - 1)/(r - 1)
-   * @param interestRate
-   * @param periods
-   * @private
-   */
-  private getAdditionalContributionsTotalInterestMultiplier(
-    interestRate: number,
-    periods: number
-  ): number {
-    // Handle special case where interest rate is 0
-    if (interestRate === 0) {
-      return periods;
-    }
-
-    // Geometric series formula: sum of (1+r)^i from i=1 to n
-    // This equals: ((1+r)^(n+1) - (1+r)) / r
-    const r = 1 + interestRate;
-    return (Math.pow(r, periods + 1) - r) / interestRate;
-  }
-
-  /**
    * Calculate the total number of periods based on years and periods per year.
+   * May be fractional when the years do not end on a period boundary; values
+   * within rounding error of a whole number are snapped to it.
    * @param years
    * @param periodsPerYear
    * @private
    */
   private getTotalPeriods(years: number, periodsPerYear: number): number {
-    return years * periodsPerYear;
+    const periods: number = years * periodsPerYear;
+    const nearest: number = Math.round(periods);
+    return Math.abs(periods - nearest) < 1e-9 ? nearest : periods;
   }
 
   /**
@@ -310,102 +333,94 @@ export default class RetirementCalculator {
   }
 
   /**
-   * Compute the effective annual return on the account balance.
+   * Compute the money-weighted annual return (internal rate of return).
    *
-   * This metric answers: "at what annual rate did my account grow from start
-   * to end?" — including both investment returns and the effect of
-   * contributions. It is NOT a pure investment-performance metric; use
-   * averageAnnualInterestRate for that.
+   * Finds the single periodic rate i that grows every deposit to the final
+   * balance: sum(amount_k * (1 + i)^periodsInvested_k) = finalBalance. Unlike
+   * the time-weighted return, this weights each period's return by how much
+   * money was invested during it.
    *
-   * Defined as (finalBalance / initialBalance)^(1/years) - 1. When the initial
-   * balance is zero, totalContributions is used as the base for an
-   * approximate growth rate. Returns 0 if no interest was earned.
+   * The left-hand side increases with i, so the root is found by bisection.
    *
    * @private
    */
-  private calculateEffectiveAnnualReturn(
-    initialBalance: number,
+  private calculateMoneyWeightedReturn(
+    deposits: { amount: number; periodsInvested: number }[],
     finalBalance: number,
-    totalContributions: number,
-    totalInterestEarned: number,
-    years: number
+    periodsPerYear: number
   ): number {
-    if (totalInterestEarned === 0) return 0;
-    if (initialBalance === 0) {
-      return totalContributions > 0
-        ? Math.pow(finalBalance / totalContributions, 1 / years) - 1
-        : 0;
-    }
-    return Math.pow(finalBalance / initialBalance, 1 / years) - 1;
-  }
+    const totalDeposited: number = deposits.reduce(
+      (sum, deposit) => sum + deposit.amount,
+      0
+    );
+    if (totalDeposited <= 0) return 0;
+    // With no deposit invested for at least one period the rate is
+    // indeterminate; report 0 rather than letting the search drift to -100%.
+    const hasInvestedDeposit: boolean = deposits.some(
+      (deposit) => deposit.amount > 0 && deposit.periodsInvested > 0
+    );
+    if (!hasInvestedDeposit) return 0;
+    // Nothing gained or lost: exactly 0, not a root within rounding of it.
+    if (finalBalance === totalDeposited) return 0;
+    if (finalBalance <= 0) return -1;
 
-  /**
-   * Calculate how often compounding should occur based on contribution and compounding frequencies.
-   * @param contributionFrequency
-   * @param compoundingFrequency
-   * @private
-   */
-  private getHowOftenToCompound(
-    contributionFrequency: number,
-    compoundingFrequency: number
-  ): number {
-    if (contributionFrequency === CONTRIBUTION_FREQUENCY.YEARLY) {
-      return compoundingFrequency;
-    } else {
-      if (compoundingFrequency >= contributionFrequency) {
-        return Math.floor(compoundingFrequency / contributionFrequency);
+    const futureValueAt = (rate: number): number =>
+      deposits.reduce(
+        (sum, deposit) =>
+          sum + deposit.amount * Math.pow(1 + rate, deposit.periodsInvested),
+        0
+      );
+
+    let low: number = -1;
+    let high: number = 1;
+    while (futureValueAt(high) < finalBalance && high < 1e6) {
+      high *= 2;
+    }
+    for (let i = 0; i < 200 && high - low > Number.EPSILON; i++) {
+      const mid: number = (low + high) / 2;
+      if (futureValueAt(mid) < finalBalance) {
+        low = mid;
       } else {
-        return Math.ceil(contributionFrequency / compoundingFrequency);
+        high = mid;
       }
     }
+
+    return Math.pow(1 + (low + high) / 2, periodsPerYear) - 1;
   }
 
   /**
-   * Calculate the compound multiplier based on contribution and compounding frequencies.
-   * ex. If we contribute yearly, but compound monthly, then our compound multiplier would be 12.
-   * @param contributionFrequency
-   * @param compoundingFrequency
+   * Count the contributions that fall due during a span of periods.
+   *
+   * Contribution k falls due k / contributionFrequency years in, so the number
+   * due by the end of period p is floor(p * contributionFrequency /
+   * periodsPerYear). Differencing the two ends of the span gives an exact
+   * schedule for any pair of whole-number frequencies: yearly contributions on
+   * a monthly grid land in every 12th period, and weekly contributions land 4
+   * or 5 to a month, totalling 52 a year.
+   *
+   * @param periodStart Periods elapsed at the start of the span
+   * @param periodEnd Periods elapsed at the end of the span (may be fractional)
    * @private
    */
-  private getCompoundMultiplier(
+  private getContributionsDueBetween(
+    periodStart: number,
+    periodEnd: number,
     contributionFrequency: number,
-    compoundingFrequency: number
+    periodsPerYear: number
   ): number {
-    if (contributionFrequency === CONTRIBUTION_FREQUENCY.YEARLY) {
-      return 1;
-    } else {
-      return Math.min(1, compoundingFrequency / contributionFrequency);
-    }
+    // The tolerance keeps a contribution due exactly at a fractional end from
+    // being lost to rounding; whole-number ends are unaffected.
+    const dueBy = (periodsElapsed: number): number =>
+      Math.floor(
+        (periodsElapsed * contributionFrequency) / periodsPerYear + 1e-9
+      );
+    return dueBy(periodEnd) - dueBy(periodStart);
   }
 
   /**
-   * Convert the balance to match contribution and compounding being the same.
-   * @param balance
-   * @param contributionFrequency
-   * @param compoundingFrequency
-   * @private
-   */
-  private convertBalanceBasedOnFrequency(
-    balance: number,
-    contributionFrequency: number,
-    compoundingFrequency: number
-  ): number {
-    if (balance < 0) {
-      return 0;
-    } else {
-      if (compoundingFrequency > contributionFrequency) {
-        return (balance * compoundingFrequency) / contributionFrequency;
-      } else if (contributionFrequency > compoundingFrequency) {
-        return (
-          balance / Math.floor(contributionFrequency / compoundingFrequency)
-        );
-      }
-      return balance;
-    }
-  }
-
-  /**
-   * Determine the contribution needed at what frequency to reach a desired balance.
+   * Determine the amount to contribute, at the given contribution frequency,
+   * to reach a desired balance. Feeding the result back into
+   * getCompoundInterestWithAdditionalContributions reproduces the target.
    * @param startingBalance
    * @param desiredBalance
    * @param years
@@ -426,26 +441,11 @@ export default class RetirementCalculator {
     this.validateNonNegativeFinite(startingBalance, 'startingBalance');
     this.validateNonNegativeFinite(desiredBalance, 'desiredBalance');
     this.validatePositiveFinite(years, 'years');
-    this.validateFiniteNumber(interestRate, 'interestRate');
-    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
-    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
-    this.validateFiniteNumber(inflationRate, 'inflationRate');
+    this.validateFrequency(contributionFrequency, 'contributionFrequency');
+    this.validateFrequency(compoundingFrequency, 'compoundingFrequency');
+    this.validateInterestRate(interestRate, compoundingFrequency);
+    this.validateInflationRate(inflationRate);
 
-    const periods: number = this.getTotalPeriods(years, compoundingFrequency);
-    const interestRatePerPeriod: number = this.getInterestRatePerPeriod(
-      interestRate,
-      compoundingFrequency
-    );
-    const startingBalanceWithInterest: number = this.getInterestOverTime(
-      startingBalance,
-      interestRatePerPeriod,
-      periods
-    );
-    const additionalContributionsInterestRate: number =
-      this.getAdditionalContributionsTotalInterestMultiplier(
-        interestRatePerPeriod,
-        periods
-      );
     const desiredBalanceWithInflation: number =
       this.adjustDesiredBalanceDueToInflation(
         desiredBalance,
@@ -454,24 +454,38 @@ export default class RetirementCalculator {
       );
     const desiredBalanceValueAfterInflation: number =
       this.getValueAfterInflation(desiredBalance, inflationRate, years);
-    const contributionNeededPerPeriod: number =
-      this.convertBalanceBasedOnFrequency(
-        (desiredBalance - startingBalanceWithInterest) /
-          additionalContributionsInterestRate,
+
+    // The final balance is linear in the contribution amount, so two
+    // projections are enough to solve for it exactly:
+    //   balance(c) = balanceWithoutContributions + c * balancePerUnitContributed
+    const project = (initialBalance: number, contribution: number): number =>
+      this.getCompoundInterestWithAdditionalContributions(
+        initialBalance,
+        contribution,
+        years,
+        interestRate,
         contributionFrequency,
         compoundingFrequency
-      );
-    const contributionNeededPerPeriodWithInflation: number =
-      this.convertBalanceBasedOnFrequency(
-        (desiredBalanceWithInflation - startingBalanceWithInterest) /
-          additionalContributionsInterestRate,
-        contributionFrequency,
-        compoundingFrequency
-      );
+      ).balance;
+    const balanceWithoutContributions: number = project(startingBalance, 0);
+    const balancePerUnitContributed: number = project(0, 1);
+
+    const contributionNeededFor = (targetBalance: number): number => {
+      const shortfall: number = targetBalance - balanceWithoutContributions;
+      if (shortfall <= 0) return 0;
+      if (balancePerUnitContributed <= 0) {
+        throw new Error(
+          `No contribution is credited within ${years} year(s) at these frequencies, so the desired balance cannot be reached`
+        );
+      }
+      return shortfall / balancePerUnitContributed;
+    };
 
     return {
-      contributionNeededPerPeriod,
-      contributionNeededPerPeriodWithInflation,
+      contributionNeededPerPeriod: contributionNeededFor(desiredBalance),
+      contributionNeededPerPeriodWithInflation: contributionNeededFor(
+        desiredBalanceWithInflation
+      ),
       desiredBalance,
       desiredBalanceWithInflation,
       desiredBalanceValueAfterInflation,
@@ -481,12 +495,15 @@ export default class RetirementCalculator {
   /**
    * Calculate compound interest with additional contributions made over a given period of time.
    *
+   * Contributions are credited at the start of the compounding period in which
+   * they fall due, so each earns interest for that period.
+   *
    * @param {number} initialBalance - The initial balance.
-   * @param {number} additionalContributionAmount - The additional contribution amount.
-   * @param {number} years - The number of years.
-   * @param {number} interestRate - The interest rate.
-   * @param {number} contributionFrequency - The contribution frequency.
-   * @param {number} compoundingFrequency - The compounding frequency.
+   * @param {number} additionalContributionAmount - The amount of each contribution.
+   * @param {number} years - The number of years. If this does not end on a compounding boundary, the remainder runs as a final partial period earning simple interest.
+   * @param {number} interestRate - The nominal annual interest rate; each period earns interestRate / compoundingFrequency.
+   * @param {number} contributionFrequency - Contributions per year (whole number).
+   * @param {number} compoundingFrequency - Compounding periods per year (whole number).
    * @returns {CompoundingInterestObjectType} An object that contains the results, and a history.
    */
   public getCompoundInterestWithAdditionalContributions(
@@ -504,19 +521,20 @@ export default class RetirementCalculator {
       'additionalContributionAmount'
     );
     this.validatePositiveFinite(years, 'years');
-    this.validateFiniteNumber(interestRate, 'interestRate');
-    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
-    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
+    this.validateFrequency(contributionFrequency, 'contributionFrequency');
+    this.validateFrequency(compoundingFrequency, 'compoundingFrequency');
+    this.validateInterestRate(interestRate, compoundingFrequency);
 
-    const periods: number = this.getTotalPeriods(years, compoundingFrequency);
-    const compoundMultiplier: number = this.getCompoundMultiplier(
-      contributionFrequency,
+    // When the years do not end on a compounding boundary, the leftover
+    // fraction runs as a final partial period earning simple interest.
+    const totalPeriods: number = this.getTotalPeriods(
+      years,
       compoundingFrequency
     );
-    const howOftenToCompound: number = this.getHowOftenToCompound(
-      contributionFrequency,
-      compoundingFrequency
-    );
+    const fullPeriods: number = Math.floor(totalPeriods);
+    const partialPeriod: number = totalPeriods - fullPeriods;
+    const periodCount: number =
+      partialPeriod > 0 ? fullPeriods + 1 : fullPeriods;
     let balance: number = initialBalance;
     const interestRatePerPeriod: number = this.getInterestRatePerPeriod(
       interestRate,
@@ -527,23 +545,31 @@ export default class RetirementCalculator {
     let totalContributions = 0;
     let totalInterestEarned = 0;
 
-    for (let period = 1; period <= periods; period++) {
-      // Add contribution(s) at the correct time
-      if (period % howOftenToCompound === 0) {
-        const contributionThisPeriod =
-          additionalContributionAmount * compoundMultiplier;
-        totalContributions += contributionThisPeriod;
-        balance += contributionThisPeriod;
-      }
+    for (let period = 1; period <= periodCount; period++) {
+      const isPartialPeriod: boolean = period > fullPeriods;
+
+      // Add the contribution(s) that fall due in this period
+      const contributionThisPeriod: number =
+        additionalContributionAmount *
+        this.getContributionsDueBetween(
+          period - 1,
+          isPartialPeriod ? totalPeriods : period,
+          contributionFrequency,
+          compoundingFrequency
+        );
+      totalContributions += contributionThisPeriod;
+      balance += contributionThisPeriod;
 
       // Apply interest for each compounding period
-      const interestEarnedThisPeriod = balance * interestRatePerPeriod;
+      const interestEarnedThisPeriod =
+        balance * interestRatePerPeriod * (isPartialPeriod ? partialPeriod : 1);
       totalInterestEarned += interestEarnedThisPeriod;
       balance += interestEarnedThisPeriod;
 
-      // Calculate balances from contributions and interest
+      // Split the balance into contributions and interest. The initial
+      // balance belongs to neither.
       const balanceFromContributions = totalContributions;
-      const balanceFromInterest = balance - totalContributions;
+      const balanceFromInterest = totalInterestEarned;
 
       compoundingPeriodDetails.push({
         period,
@@ -556,19 +582,12 @@ export default class RetirementCalculator {
       });
     }
 
-    // Calculate return metrics.
     // averageAnnualInterestRate is the time-weighted return; for a constant
-    // per-period rate this reduces to the closed-form EAR of that rate.
+    // per-period rate this reduces to the closed-form EAR of that rate. The
+    // money-weighted return is identical at a constant rate, so it is not
+    // reported separately here.
     const averageAnnualInterestRate =
       Math.pow(1 + interestRatePerPeriod, compoundingFrequency) - 1;
-
-    const effectiveAnnualReturn = this.calculateEffectiveAnnualReturn(
-      initialBalance,
-      balance,
-      totalContributions,
-      totalInterestEarned,
-      years
-    );
 
     return {
       balance,
@@ -578,7 +597,6 @@ export default class RetirementCalculator {
       contributionFrequency,
       compoundingFrequency,
       compoundingPeriodDetails,
-      effectiveAnnualReturn,
       averageAnnualInterestRate,
     };
   }
@@ -588,7 +606,7 @@ export default class RetirementCalculator {
    * This method is useful for visualizing the growth of an investment on an annual basis.
    *
    * @param {CompoundingInterestObjectType} compoundingDetails - The detailed compounding data from the interest calculation.
-   * @returns {YearlyCompoundingDetails[]} An array of aggregated yearly data.
+   * @returns {YearlyCompoundingDetails[]} An array of aggregated yearly data. If the calculation ended part-way through a year, the last row covers that partial year.
    */
   public aggregateDataByYear(
     compoundingDetails: CompoundingInterestObjectType
@@ -599,40 +617,24 @@ export default class RetirementCalculator {
     const compoundingFrequency: number =
       compoundingDetails.compoundingFrequency;
 
-    // Initialize variables to track contributions and interest
-    let cumulativeContributions: number = 0;
-    let cumulativeInterest: number = 0;
+    // A final partial year gets its own row, ending at the last period.
+    const yearCount: number = Math.ceil(
+      compoundingPeriodDetails.length / compoundingFrequency
+    );
 
-    for (let year: number = 1; year <= compoundingDetails.years; year++) {
-      const startPeriod: number = (year - 1) * compoundingFrequency + 1;
-      const endPeriod: number = year * compoundingFrequency;
-
-      for (let period: number = startPeriod; period <= endPeriod; period++) {
-        const detail: CompoundingPeriodDetailsType | undefined =
-          compoundingPeriodDetails[period - 1];
-        if (typeof detail !== 'undefined') {
-          // Calculate the contributions and interest for the year
-          if (period === startPeriod) {
-            // For the first period of the year, take the full cumulative amount
-            cumulativeContributions = detail.contributionTotal;
-            cumulativeInterest = detail.interestTotal;
-          } else {
-            // For subsequent periods, calculate the difference from the previous period
-            cumulativeContributions +=
-              detail.contributionTotal -
-              compoundingPeriodDetails[period - 2].contributionTotal;
-            cumulativeInterest +=
-              detail.interestTotal -
-              compoundingPeriodDetails[period - 2].interestTotal;
-          }
-        }
-      }
+    for (let year: number = 1; year <= yearCount; year++) {
+      const endPeriod: number = Math.min(
+        year * compoundingFrequency,
+        compoundingPeriodDetails.length
+      );
+      const detail: CompoundingPeriodDetailsType =
+        compoundingPeriodDetails[endPeriod - 1];
 
       yearlyData.push({
         year,
-        cumulativeContributions,
-        cumulativeInterest,
-        endOfYearBalance: compoundingPeriodDetails[endPeriod - 1].balance,
+        cumulativeContributions: detail.contributionTotal,
+        cumulativeInterest: detail.interestTotal,
+        endOfYearBalance: detail.balance,
       });
     }
 
@@ -652,9 +654,15 @@ export default class RetirementCalculator {
    * @param startAge Starting age for calculation
    * @param endAge Ending age for calculation
    * @param glidepathConfig Strategy configuration (fixed, allocation-based, or custom)
-   * @param contributionFrequency Number of contributions per year (default: 12)
-   * @param compoundingFrequency Number of compounding periods per year (default: 12)
-   * @param contributionTiming When contributions are added ('start' or 'end' of period)
+   * @param contributionFrequency Number of contributions per year (default: 12).
+   *   Contributions are placed in the month in which they fall due.
+   * @param compoundingFrequency How many times a year earned interest is
+   *   credited to the balance (default: 12). The simulation steps monthly and
+   *   treats returns as effective annual rates, so values above 12 behave
+   *   exactly like 12. Below 12, interest accrues monthly on the credited
+   *   balance and is added to it at the end of each compounding period (or
+   *   at the end of the simulation, if that comes first).
+   * @param contributionTiming When contributions are added ('start' or 'end' of the month)
    * @returns Detailed glidepath calculation results with timeline data
    */
   public getCompoundInterestWithGlidepath(
@@ -675,8 +683,8 @@ export default class RetirementCalculator {
     if (startAge >= endAge) {
       throw new Error('startAge must be less than endAge');
     }
-    this.validatePositiveFinite(contributionFrequency, 'contributionFrequency');
-    this.validatePositiveFinite(compoundingFrequency, 'compoundingFrequency');
+    this.validateFrequency(contributionFrequency, 'contributionFrequency');
+    this.validateFrequency(compoundingFrequency, 'compoundingFrequency');
     this.validateGlidepathConfig(glidepathConfig);
 
     // Calculate simulation parameters
@@ -694,15 +702,17 @@ export default class RetirementCalculator {
 
     const monthlyTimeline: MonthlyTimelineEntry[] = [];
 
-    // Calculate compound multiplier and contribution timing
-    const compoundMultiplier = this.getCompoundMultiplier(
-      contributionFrequency,
-      compoundingFrequency
-    );
-    const howOftenToCompound = this.getHowOftenToCompound(
-      contributionFrequency,
-      compoundingFrequency
-    );
+    // Interest is credited at most monthly on this grid. Until it is credited
+    // it sits in accruedInterest and does not itself earn interest.
+    const creditsPerYear = Math.min(compoundingFrequency, 12);
+    let accruedInterest = 0;
+    // A notional lump sum run through the same accrual and crediting model.
+    // Its monthly growth is the strategy's return, free of contribution effects.
+    let unitBalance = 1;
+    let unitAccruedInterest = 0;
+    const deposits: { amount: number; periodsInvested: number }[] = [
+      { amount: initialBalance, periodsInvested: totalMonths },
+    ];
 
     // Monthly simulation loop
     for (let month = 1; month <= totalMonths; month++) {
@@ -717,31 +727,68 @@ export default class RetirementCalculator {
         endAge
       );
 
-      // Convert to monthly compounding rate
+      // Rate for this compounding period, sized to the months it actually
+      // spans (periods are uneven when the frequency does not divide 12) and
+      // spread evenly over them
+      const monthsInPeriod = this.getMonthsInCompoundingPeriod(
+        month,
+        creditsPerYear
+      );
+      const accrualRate =
+        this.convertAnnualToPeriodicRate(
+          annualReturnRate,
+          12 / monthsInPeriod
+        ) / monthsInPeriod;
+
+      // The strategy's return this month: growth of the notional lump sum,
+      // whose uncredited interest earns nothing
       const monthlyReturnRate =
-        this.convertAnnualToMonthlyRate(annualReturnRate);
+        accrualRate * (unitBalance / (unitBalance + unitAccruedInterest));
+      unitAccruedInterest += unitBalance * accrualRate;
 
-      // Handle contribution timing (match existing method logic)
-      let contributionThisMonth = 0;
-      if (month % howOftenToCompound === 0) {
-        contributionThisMonth = contributionAmount * compoundMultiplier;
-      }
+      const contributionThisMonth =
+        contributionAmount *
+        this.getContributionsDueBetween(
+          month - 1,
+          month,
+          contributionFrequency,
+          12
+        );
 
-      // Add contributions at start or end of month
+      // Add contributions at start of month
       if (contributionTiming === 'start' && contributionThisMonth > 0) {
         balance += contributionThisMonth;
         totalContributions += contributionThisMonth;
+        deposits.push({
+          amount: contributionThisMonth,
+          periodsInvested: totalMonths - month + 1,
+        });
       }
 
-      // Apply monthly compounding
-      const interestEarnedThisMonth = balance * monthlyReturnRate;
-      balance += interestEarnedThisMonth;
+      // Accrue this month's interest, and credit it when a compounding
+      // period ends (or the simulation does)
+      const interestEarnedThisMonth = balance * accrualRate;
+      accruedInterest += interestEarnedThisMonth;
       totalInterestEarned += interestEarnedThisMonth;
+      if (
+        this.getContributionsDueBetween(month - 1, month, creditsPerYear, 12) >
+          0 ||
+        month === totalMonths
+      ) {
+        balance += accruedInterest;
+        accruedInterest = 0;
+        unitBalance += unitAccruedInterest;
+        unitAccruedInterest = 0;
+      }
 
       // Add contributions at end of month
       if (contributionTiming === 'end' && contributionThisMonth > 0) {
         balance += contributionThisMonth;
         totalContributions += contributionThisMonth;
+        deposits.push({
+          amount: contributionThisMonth,
+          periodsInvested: totalMonths - month,
+        });
       }
 
       // Get current equity weight for timeline data
@@ -756,7 +803,7 @@ export default class RetirementCalculator {
       const timelineEntry: MonthlyTimelineEntry = {
         month,
         age: currentAge,
-        currentBalance: balance,
+        currentBalance: balance + accruedInterest,
         cumulativeContributions: totalContributions,
         cumulativeInterest: totalInterestEarned,
         monthlyInterestEarned: interestEarnedThisMonth,
@@ -780,12 +827,10 @@ export default class RetirementCalculator {
       12
     );
 
-    const effectiveAnnualReturn = this.calculateEffectiveAnnualReturn(
-      initialBalance,
+    const moneyWeightedAnnualReturn = this.calculateMoneyWeightedReturn(
+      deposits,
       balance,
-      totalContributions,
-      totalInterestEarned,
-      totalYears
+      12
     );
 
     const averageMonthlyReturn =
@@ -806,7 +851,7 @@ export default class RetirementCalculator {
       endAge,
       glidepathMode: glidepathConfig.mode,
       monthlyTimeline,
-      effectiveAnnualReturn,
+      moneyWeightedAnnualReturn,
       averageAnnualInterestRate,
       averageMonthlyReturn,
     };
@@ -1097,14 +1142,37 @@ export default class RetirementCalculator {
   }
 
   /**
-   * Convert annual interest rate to monthly compounding rate.
-   * Formula: monthlyRate = (1 + annualRate)^(1/12) - 1
-   * @param annualRate Annual interest rate (decimal)
-   * @returns Monthly compounding rate (decimal)
+   * Number of months in the compounding period that contains a given month.
+   *
+   * Credit j lands in month ceil(12 * j / creditsPerYear), so periods are all
+   * 12 / creditsPerYear months long when that divides evenly, and a mix of
+   * the two nearest whole lengths otherwise (e.g. 2 and 3 months for 5 a year).
    * @private
    */
-  private convertAnnualToMonthlyRate(annualRate: number): number {
-    return Math.pow(1 + annualRate, 1 / 12) - 1;
+  private getMonthsInCompoundingPeriod(
+    month: number,
+    creditsPerYear: number
+  ): number {
+    const creditsBefore = Math.floor(((month - 1) * creditsPerYear) / 12);
+    return (
+      Math.ceil((12 * (creditsBefore + 1)) / creditsPerYear) -
+      Math.ceil((12 * creditsBefore) / creditsPerYear)
+    );
+  }
+
+  /**
+   * Convert an effective annual rate to the equivalent rate per period.
+   * Formula: periodicRate = (1 + annualRate)^(1/periodsPerYear) - 1
+   * @param annualRate Effective annual rate (decimal)
+   * @param periodsPerYear Number of compounding periods per year
+   * @returns Rate per period (decimal)
+   * @private
+   */
+  private convertAnnualToPeriodicRate(
+    annualRate: number,
+    periodsPerYear: number
+  ): number {
+    return Math.pow(1 + annualRate, 1 / periodsPerYear) - 1;
   }
 
   /**

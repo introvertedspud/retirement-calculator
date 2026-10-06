@@ -68,8 +68,8 @@ export type DetermineContributionType = {
  * @property {number} contributionTotal - The cumulative total of contributions made up to this period.
  * @property {number} interestTotal - The cumulative total of interest earned up to this period.
  * @property {number} interestEarnedThisPeriod - The amount of interest earned during this specific period.
- * @property {number} balanceFromContributions - The portion of the current balance attributable to contributions.
- * @property {number} balanceFromInterest - The portion of the current balance attributable to accumulated interest.
+ * @property {number} balanceFromContributions - The portion of the current balance attributable to contributions. Excludes the initial balance.
+ * @property {number} balanceFromInterest - The portion of the current balance attributable to accumulated interest. Excludes the initial balance, so balance = initial balance + balanceFromContributions + balanceFromInterest.
  */
 export type CompoundingPeriodDetailsType = {
   period: number;
@@ -129,21 +129,6 @@ export type CompoundingInterestObjectType = {
   compoundingPeriodDetails: CompoundingPeriodDetailsType[];
 
   /**
-   * Account growth rate over the simulation period — answers "at what
-   * annual rate did my account grow from start to end?". Includes growth
-   * from BOTH investment returns AND contributions.
-   *
-   * Calculated as (finalBalance / initialBalance)^(1/years) - 1.
-   * When initialBalance is 0, totalContributions is used as the base.
-   * Returns 0 when no interest is earned.
-   *
-   * NOTE: This is NOT an investment-performance metric. For pure
-   * investment performance (comparable to benchmarks like the S&P 500),
-   * use averageAnnualInterestRate.
-   */
-  effectiveAnnualReturn: number;
-
-  /**
    * Time-weighted annual return (TWR) — the strategy's investment
    * performance, independent of contribution timing.
    *
@@ -155,7 +140,8 @@ export type CompoundingInterestObjectType = {
    * average of the path of returns.
    *
    * This is the metric to compare against benchmarks (e.g., the S&P 500
-   * return over the same window).
+   * return over the same window). At a constant rate the money-weighted
+   * return is the same number, so it is not reported separately.
    */
   averageAnnualInterestRate: number;
 };
@@ -539,8 +525,12 @@ export type MonthlyTimelineEntry = {
   currentAnnualReturn: number;
 
   /**
-   * Monthly return rate that was applied during this month.
-   * Converted from annual rate using: (1 + annualRate)^(1/12) - 1
+   * The strategy's return for this month: how much a lump sum held under
+   * the same compounding schedule grew, independent of contributions.
+   *
+   * With monthly (or more frequent) compounding this is
+   * (1 + annualRate)^(1/12) - 1. When interest is credited less often it
+   * reflects that uncredited interest earns nothing until it is credited.
    */
   currentMonthlyReturn: number;
 
@@ -564,7 +554,7 @@ export type MonthlyTimelineEntry = {
  *
  * console.log(`Final balance: $${result.finalBalance.toLocaleString()}`);
  * console.log(`Total months: ${result.totalMonths}`);
- * console.log(`Effective annual return: ${(result.effectiveAnnualReturn * 100).toFixed(2)}%`);
+ * console.log(`Money-weighted return: ${(result.moneyWeightedAnnualReturn * 100).toFixed(2)}%`);
  * ```
  */
 export type DynamicGlidepathResult = {
@@ -621,19 +611,20 @@ export type DynamicGlidepathResult = {
   // Summary statistics
 
   /**
-   * Account growth rate over the simulation period — answers "at what
-   * annual rate did my account grow from start to end?". Includes growth
-   * from BOTH investment returns AND contributions.
+   * Money-weighted annual return (internal rate of return) — the single
+   * annual rate that would grow every deposit, from the date it was made,
+   * to the final balance. Answers "what return did my dollars actually
+   * earn?".
    *
-   * Calculated as (finalBalance / initialBalance)^(1/years) - 1.
-   * When initialBalance is 0, totalContributions is used as the base.
-   * Returns 0 when no interest is earned.
+   * Unlike averageAnnualInterestRate, this weights each period's return by
+   * how much money was invested during it. On a glidepath that lowers
+   * returns with age, most of the money is invested in the later,
+   * lower-return years, so this is typically below the time-weighted
+   * figure. The two are equal when the return never changes.
    *
-   * NOTE: This is NOT an investment-performance metric. For pure
-   * investment performance (comparable to benchmarks like the S&P 500),
-   * use averageAnnualInterestRate.
+   * Returns 0 when nothing was invested.
    */
-  effectiveAnnualReturn: number;
+  moneyWeightedAnnualReturn: number;
 
   /**
    * Time-weighted annual return (TWR) — the strategy's investment
