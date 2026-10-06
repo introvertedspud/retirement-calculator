@@ -285,47 +285,58 @@ export default class RetirementCalculator {
   }
 
   /**
-   * Calculate return metrics from simulation results.
-   * Provides two distinct metrics:
-   * - effectiveAnnualReturn: Overall account growth rate (includes contributions)
-   * - averageAnnualInterestRate: Investment performance isolated from contributions
+   * Compute the time-weighted annual return from a sequence of periodic returns.
    *
-   * @param initialBalance Starting balance
-   * @param finalBalance Ending balance
-   * @param totalContributions Total contributions made
-   * @param totalInterestEarned Total interest earned
-   * @param years Number of years
-   * @returns Return metrics object
+   * Formula: TWR = (product of (1 + r_i))^(periodsPerYear / n) - 1
+   *
+   * TWR isolates investment performance from contribution timing and is the
+   * standard metric for comparing portfolio performance to a benchmark
+   * (e.g., the S&P 500 over the same window).
+   *
    * @private
    */
-  private calculateReturnMetrics(
+  private calculateTimeWeightedReturn(
+    periodicReturnRates: number[],
+    periodsPerYear: number
+  ): number {
+    if (periodicReturnRates.length === 0) return 0;
+    let product = 1;
+    for (const r of periodicReturnRates) {
+      product *= 1 + r;
+    }
+    // Catastrophic loss case (>= 100% loss in any combined window): return -1.
+    if (product <= 0) return -1;
+    return Math.pow(product, periodsPerYear / periodicReturnRates.length) - 1;
+  }
+
+  /**
+   * Compute the effective annual return on the account balance.
+   *
+   * This metric answers: "at what annual rate did my account grow from start
+   * to end?" — including both investment returns and the effect of
+   * contributions. It is NOT a pure investment-performance metric; use
+   * averageAnnualInterestRate for that.
+   *
+   * Defined as (finalBalance / initialBalance)^(1/years) - 1. When the initial
+   * balance is zero, totalContributions is used as the base for an
+   * approximate growth rate. Returns 0 if no interest was earned.
+   *
+   * @private
+   */
+  private calculateEffectiveAnnualReturn(
     initialBalance: number,
     finalBalance: number,
     totalContributions: number,
     totalInterestEarned: number,
     years: number
-  ): { effectiveAnnualReturn: number; averageAnnualInterestRate: number } {
-    let effectiveAnnualReturn: number;
-
-    if (totalInterestEarned === 0) {
-      effectiveAnnualReturn = 0;
-    } else if (initialBalance === 0) {
-      effectiveAnnualReturn =
-        totalContributions > 0
-          ? Math.pow(finalBalance / totalContributions, 1 / years) - 1
-          : 0;
-    } else {
-      effectiveAnnualReturn =
-        Math.pow(finalBalance / initialBalance, 1 / years) - 1;
-    }
-
-    const totalInvested = initialBalance + totalContributions;
-    const averageAnnualInterestRate =
-      totalInvested > 0 && totalInterestEarned > 0
-        ? totalInterestEarned / years / totalInvested
+  ): number {
+    if (totalInterestEarned === 0) return 0;
+    if (initialBalance === 0) {
+      return totalContributions > 0
+        ? Math.pow(finalBalance / totalContributions, 1 / years) - 1
         : 0;
-
-    return { effectiveAnnualReturn, averageAnnualInterestRate };
+    }
+    return Math.pow(finalBalance / initialBalance, 1 / years) - 1;
   }
 
   /**
@@ -545,15 +556,19 @@ export default class RetirementCalculator {
       });
     }
 
-    // Calculate return metrics
-    const { effectiveAnnualReturn, averageAnnualInterestRate } =
-      this.calculateReturnMetrics(
-        initialBalance,
-        balance,
-        totalContributions,
-        totalInterestEarned,
-        years
-      );
+    // Calculate return metrics.
+    // averageAnnualInterestRate is the time-weighted return; for a constant
+    // per-period rate this reduces to the closed-form EAR of that rate.
+    const averageAnnualInterestRate =
+      Math.pow(1 + interestRatePerPeriod, compoundingFrequency) - 1;
+
+    const effectiveAnnualReturn = this.calculateEffectiveAnnualReturn(
+      initialBalance,
+      balance,
+      totalContributions,
+      totalInterestEarned,
+      years
+    );
 
     return {
       balance,
@@ -753,15 +768,25 @@ export default class RetirementCalculator {
       monthlyTimeline.push(timelineEntry);
     }
 
-    // Calculate summary statistics
-    const { effectiveAnnualReturn, averageAnnualInterestRate } =
-      this.calculateReturnMetrics(
-        initialBalance,
-        balance,
-        totalContributions,
-        totalInterestEarned,
-        totalYears
-      );
+    // Calculate summary statistics.
+    // averageAnnualInterestRate is the time-weighted annual return computed
+    // from the path of monthly returns — isolates investment performance
+    // from contribution timing.
+    const monthlyReturnRates = monthlyTimeline.map(
+      (entry) => entry.currentMonthlyReturn
+    );
+    const averageAnnualInterestRate = this.calculateTimeWeightedReturn(
+      monthlyReturnRates,
+      12
+    );
+
+    const effectiveAnnualReturn = this.calculateEffectiveAnnualReturn(
+      initialBalance,
+      balance,
+      totalContributions,
+      totalInterestEarned,
+      totalYears
+    );
 
     const averageMonthlyReturn =
       monthlyTimeline.reduce(

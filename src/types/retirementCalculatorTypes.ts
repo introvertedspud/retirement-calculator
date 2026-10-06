@@ -129,18 +129,33 @@ export type CompoundingInterestObjectType = {
   compoundingPeriodDetails: CompoundingPeriodDetailsType[];
 
   /**
-   * Effective compound annual growth rate over the entire simulation period.
-   * Calculated as (finalBalance / initialBalance)^(1/years) - 1
-   * NOTE: This includes growth from both contributions AND investment returns.
-   * For investment returns only, see averageAnnualInterestRate.
+   * Account growth rate over the simulation period — answers "at what
+   * annual rate did my account grow from start to end?". Includes growth
+   * from BOTH investment returns AND contributions.
+   *
+   * Calculated as (finalBalance / initialBalance)^(1/years) - 1.
+   * When initialBalance is 0, totalContributions is used as the base.
+   * Returns 0 when no interest is earned.
+   *
+   * NOTE: This is NOT an investment-performance metric. For pure
+   * investment performance (comparable to benchmarks like the S&P 500),
+   * use averageAnnualInterestRate.
    */
   effectiveAnnualReturn: number;
 
   /**
-   * Average annual interest rate based on actual investment returns.
-   * Calculated as (totalInterestEarned / years) / (initialBalance + totalContributions)
-   * This metric isolates investment performance from contribution growth.
-   * Returns 0 when no interest is earned.
+   * Time-weighted annual return (TWR) — the strategy's investment
+   * performance, independent of contribution timing.
+   *
+   * Calculated as the annualized geometric mean of the period-by-period
+   * returns: (product of (1 + r_i))^(periodsPerYear / n) - 1.
+   *
+   * For constant-rate strategies this reduces to the effective annual
+   * yield (EAR). For glidepath strategies this is the time-weighted
+   * average of the path of returns.
+   *
+   * This is the metric to compare against benchmarks (e.g., the S&P 500
+   * return over the same window).
    */
   averageAnnualInterestRate: number;
 };
@@ -609,18 +624,33 @@ export type DynamicGlidepathResult = {
   // Summary statistics
 
   /**
-   * Effective compound annual growth rate over the entire simulation period.
-   * Calculated as (finalBalance / initialBalance)^(1/years) - 1
-   * NOTE: This includes growth from both contributions AND investment returns.
-   * For investment returns only, see averageAnnualInterestRate.
+   * Account growth rate over the simulation period — answers "at what
+   * annual rate did my account grow from start to end?". Includes growth
+   * from BOTH investment returns AND contributions.
+   *
+   * Calculated as (finalBalance / initialBalance)^(1/years) - 1.
+   * When initialBalance is 0, totalContributions is used as the base.
+   * Returns 0 when no interest is earned.
+   *
+   * NOTE: This is NOT an investment-performance metric. For pure
+   * investment performance (comparable to benchmarks like the S&P 500),
+   * use averageAnnualInterestRate.
    */
   effectiveAnnualReturn: number;
 
   /**
-   * Average annual interest rate based on actual investment returns.
-   * Calculated as (totalInterestEarned / years) / (initialBalance + totalContributions)
-   * This metric isolates investment performance from contribution growth.
-   * Returns 0 when no interest is earned.
+   * Time-weighted annual return (TWR) — the strategy's investment
+   * performance, independent of contribution timing.
+   *
+   * Calculated as the annualized geometric mean of the period-by-period
+   * returns: (product of (1 + r_i))^(periodsPerYear / n) - 1.
+   *
+   * For constant-rate strategies this reduces to the effective annual
+   * yield (EAR). For glidepath strategies this is the time-weighted
+   * average of the path of returns.
+   *
+   * This is the metric to compare against benchmarks (e.g., the S&P 500
+   * return over the same window).
    */
   averageAnnualInterestRate: number;
 

@@ -947,7 +947,7 @@ describe('RetirementCalculator', (): void => {
         expect(Number.isFinite(result.balance)).toBe(true);
       });
 
-      it('returns finite effectiveAnnualReturn when there are zero contributions and zero balance', (): void => {
+      it('returns finite metrics when there are zero contributions and zero balance', (): void => {
         const result: CompoundingInterestObjectType =
           calculator.getCompoundInterestWithAdditionalContributions(
             0,
@@ -957,10 +957,94 @@ describe('RetirementCalculator', (): void => {
             12,
             12
           );
+        // effectiveAnnualReturn is an account-growth metric — zero balance,
+        // zero contributions, so no account growth.
         expect(Number.isFinite(result.effectiveAnnualReturn)).toBe(true);
         expect(result.effectiveAnnualReturn).toBe(0);
-        expect(result.averageAnnualInterestRate).toBe(0);
+        // averageAnnualInterestRate is the time-weighted return of the
+        // strategy itself — independent of participation. 7% APR compounded
+        // monthly is ~7.23% effective annual.
+        expect(Number.isFinite(result.averageAnnualInterestRate)).toBe(true);
+        expect(result.averageAnnualInterestRate).toBeCloseTo(
+          Math.pow(1 + 0.07 / 12, 12) - 1,
+          10
+        );
       });
+    });
+  });
+
+  describe('Time-weighted return — averageAnnualInterestRate (Phase 3)', (): void => {
+    it('returns the EAR of a constant 8% APR with monthly compounding', (): void => {
+      const result = calculator.getCompoundInterestWithAdditionalContributions(
+        10000,
+        0,
+        10,
+        0.08,
+        12,
+        12
+      );
+      // EAR of 8% APR compounded monthly = (1 + 0.08/12)^12 - 1 ≈ 0.0830
+      const expected = Math.pow(1 + 0.08 / 12, 12) - 1;
+      expect(result.averageAnnualInterestRate).toBeCloseTo(expected, 12);
+    });
+
+    it('returns 0 for a 0% rate', (): void => {
+      const result = calculator.getCompoundInterestWithAdditionalContributions(
+        10000,
+        100,
+        10,
+        0,
+        12,
+        12
+      );
+      expect(result.averageAnnualInterestRate).toBe(0);
+    });
+
+    it('is independent of contribution amount (TWR isolates investment performance)', (): void => {
+      const noContrib =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          10000,
+          0,
+          10,
+          0.07,
+          12,
+          12
+        );
+      const heavyContrib =
+        calculator.getCompoundInterestWithAdditionalContributions(
+          10000,
+          5000,
+          10,
+          0.07,
+          12,
+          12
+        );
+      // The OLD broken formula would have given DIFFERENT values here
+      // (it divided by initial + total contributions). TWR must match.
+      expect(heavyContrib.averageAnnualInterestRate).toBeCloseTo(
+        noContrib.averageAnnualInterestRate,
+        12
+      );
+    });
+
+    it('matches the v1.2.0 CHANGELOG worked example without misleading users (8% APR / monthly comp)', (): void => {
+      // CHANGELOG line 105-107 advertised:
+      //   $10k initial + $1k/month + 8% over 10 years
+      //   "averageAnnualInterestRate: ~5.6%" -- this was the bug.
+      // With TWR, the answer is the actual investment return: EAR of 8% APR.
+      const result = calculator.getCompoundInterestWithAdditionalContributions(
+        10000,
+        1000,
+        10,
+        0.08,
+        12,
+        12
+      );
+      const expected = Math.pow(1 + 0.08 / 12, 12) - 1;
+      expect(result.averageAnnualInterestRate).toBeCloseTo(expected, 12);
+      // Sanity: definitely not the old broken ~5.6%
+      expect(result.averageAnnualInterestRate).toBeGreaterThan(0.08);
+      expect(result.averageAnnualInterestRate).toBeLessThan(0.085);
     });
   });
 });
