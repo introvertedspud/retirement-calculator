@@ -8,7 +8,7 @@
  * For actual investment decisions, Monte Carlo analysis is recommended.
  *
  * Try these strategies with your own numbers at:
- * https://commoncentsacademy.com
+ * https://wellgrovemoney.com
  */
 
 import RetirementCalculator from '../src/RetirementCalculator';
@@ -313,6 +313,6 @@ console.log(`
    Use Monte Carlo analysis for actual planning.
 
 Try these calculators with your own numbers:
-https://commoncentsacademy.com
+https://wellgrovemoney.com
 `);
 console.log('='.repeat(60));
