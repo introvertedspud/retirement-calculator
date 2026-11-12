@@ -5,7 +5,7 @@
  * to calculate how much you need to save.
  *
  * Try this with your own numbers at:
- * https://commoncentsacademy.com
+ * https://wellgrovemoney.com
  */
 
 import { RetirementCalculator } from '../index';
@@ -194,4 +194,4 @@ console.log();
 
 console.log('This assumes steady ' + interestRate + '% returns and ' + inflationRate + '% inflation.');
 console.log('Real markets fluctuate. For more realistic projections,');
-console.log('try the calculators at: https://commoncentsacademy.com');
+console.log('try the calculators at: https://wellgrovemoney.com');

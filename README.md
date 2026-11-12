@@ -112,7 +112,7 @@ npx ts-node examples/basic-retirement-gap-analysis.ts
 
 ## See it in Action
 
-This package powers the calculators at [Common Cents Academy](https://commoncentsacademy.com). Try them out to see what's possible.
+This package powers the retirement checkup and calculators at [Wellgrove](https://wellgrovemoney.com). Try them out to see what's possible.
 
 ## Documentation
 
